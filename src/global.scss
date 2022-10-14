@@ -1,0 +1,1114 @@
+/*
+ * App Global CSS
+ * ----------------------------------------------------------------------------
+ * Put style rules here that you want to apply globally. These styles are for
+ * the entire app and not just one component. Additionally, this file can be
+ * used as an entry point to import other CSS/Sass files to be included in the
+ * output CSS.
+ * For more information on global stylesheets, visit the documentation:
+ * https://ionicframework.com/docs/layout/global-stylesheets
+ */
+
+
+/* Core  CSS required for Ionic components to work properly */
+
+@import "~@ionic/angular/css/core.css";
+
+/* Basic CSS for apps built with Ionic */
+
+@import "~@ionic/angular/css/normalize.css";
+@import "~@ionic/angular/css/structure.css";
+@import "~@ionic/angular/css/typography.css";
+@import '~@ionic/angular/css/display.css';
+
+/* Optional CSS utils that can be commented out */
+
+@import "~@ionic/angular/css/padding.css";
+@import "~@ionic/angular/css/float-elements.css";
+@import "~@ionic/angular/css/text-alignment.css";
+@import "~@ionic/angular/css/text-transformation.css";
+@import "~@ionic/angular/css/flex-utils.css";
+
+
+.fab-vertical-bottom
+{
+  bottom: 70px;
+}
+
+ion-fab-button[data-desc] {
+  position: relative;
+}
+
+ion-fab-button[data-desc]::after {
+  position: absolute;
+  content: attr(data-desc);
+  z-index: 1;
+  right: 55px;
+  bottom: 4px;
+  background-color: var(--ion-color-primary);
+  padding: 9px;
+  border-radius: 15px;
+  color: white;
+  box-shadow: 0 3px 5px -1px rgba(0,0,0,0.2), 0 6px 10px 0 rgba(0,0,0,0.14), 0 1px 18px 0 rgba(0,0,0,0.12);
+}
+
+.bottom_area {
+  padding: 20px;
+  margin-top:20px;
+  bottom: 0px;
+  position: absolute;
+  background-color: var(--ion-color-primary-contrast);
+  width: 100%;
+  left: 0;
+  border-top-left-radius: 20px;
+  border-top-right-radius: 20px;
+}
+
+.small_text {
+  font-size: 10px;
+}
+
+.body_bg {
+  position: relative;
+  --background: url('assets/img/bg.jpg') no-repeat center center / cover;
+  -webkit-background-size: cover;
+  -moz-background-size: cover;
+  background-size: cover;
+}
+
+.bg_color
+{
+  --background:#ee8326;
+}
+
+ion-input {
+  border: solid 1px var(--ion-color-ash);
+  margin-bottom: 10px;
+  --placeholder-color: var(--ion-color-disable-darkGrey) !important;
+  margin-top: 4px;
+  height: 35px;
+  --placeholder-opacity: 1;
+}
+
+.text-center
+{
+  text-align: center;
+}
+
+.backbutton_placement
+{
+  color: #fff;
+  font-weight: bold;
+  font-size: 50px;
+  padding: 15px;
+}
+
+ion-fab-button .button-native
+{
+  background: #e36a2b;
+}
+
+
+.signupPageHead {
+  background-image: url('assets/img/bg.jpg');
+  background-size: cover;
+  background-position: bottom center;
+  height: 210px;
+  position: absolute;
+  left: 0px;
+  top: 0px;
+  width: 100%;
+  z-index: -1;
+}
+
+.ion-page.split-pane-main>ion-content {
+  --overflow: hidden;
+}
+.footer_box
+{
+  bottom: 0px;
+  position: absolute;
+  width: 100%;
+}
+
+.bottom_padding
+{
+  margin-bottom: 100px;
+}
+
+
+.events_box_right
+{
+  left: 16px;
+  border-top-left-radius: 40px;
+  border-bottom-left-radius: 40px;
+  -webkit-animation: slide 0.5s backwards;
+  -webkit-animation-delay: 0.5s;
+  animation: slide 0.3s backwards;
+  animation-delay: 0.5s;
+}
+.events_box_left
+{
+  border-top-right-radius: 40px;
+  border-bottom-right-radius: 40px;
+  right: 16px;
+  -webkit-animation: slide 0.5s backwards;
+  -webkit-animation-delay: 0.5s;
+  animation: slide 0.3s backwards;
+  animation-delay: 0.5s;
+}
+
+
+.product_card
+{
+  border-radius: 20px;
+  height: 150px;
+  width: auto;
+}
+
+.cart_icon
+{
+  position: absolute;
+  top: 5px;
+  right: 8px;
+  background: #000;
+  width: 45px;
+  height: 45px;
+  border-radius: 50%;
+  padding: 14px;
+  color: #fff;
+  z-index: 9;
+}
+
+ion-searchbar ion-icon {
+  right: 16px !important;
+  left: auto !important;
+}
+
+.cart_button
+{
+  text-align: center;
+  background: #e09118;
+  color: #fff;
+  padding: 13px;
+}
+
+.product_text
+{
+  font-size: 18px;
+  text-transform: uppercase;
+  left: 12px;
+  position: absolute;
+}
+
+.product_description
+{
+  top: 19px;
+  padding: 16px;
+  line-height: 25px;
+  font-size: 12px;
+}
+
+
+.productpage_back
+{    position: absolute;
+  top: 20px;
+  left: 20px;
+  background: #ffffff80;
+  width: 45px;
+  height: 45px;
+  border-radius: 50%;
+  padding: 12px;
+  color: #000;
+  z-index: 9;
+  font-size: 20px;
+}
+
+.product_share_icon
+{
+  margin-top: 6px;
+  font-size: 24px;
+}
+
+.product_price
+{
+  position: absolute;
+    bottom: 40px;
+    color: #000;
+    font-size: 16px;
+    font-weight: bold;
+    left: 8px;
+}
+
+.product_label
+{
+  position: absolute;
+    bottom: 0;
+    background: #000000c9;
+    width: 100%;
+    color: #fff;
+    text-align: center;
+    padding: 10px;
+}
+
+.top_tabs
+{
+  background: #e36a2ba8;
+}
+.footer_active {
+  background: #000000b5;
+  color:#fff;
+  border-bottom:2px solid #fff;
+}
+
+.loader_area
+{
+  margin: 0px auto;
+  text-align: center;
+  margin-top: 50%;
+}
+.loader_area img
+{
+  width: 50%;
+  opacity: 0.8;
+}
+
+.segment-btn-check {
+  background: #000000b5;
+  border-bottom:2px solid #fff;
+}
+
+ion-segment-button
+{
+  color: #ffff;
+}
+
+.footer_segment
+{
+  background: #fff;
+  border-top-left-radius: 25px;
+  border-top-right-radius: 25px;
+  border-top: 1px solid #696969;
+}
+
+.footer_segment_button
+{
+  padding-top: 10px;
+  color: #000;
+}
+.footer_segment_button.footer_active
+{
+  color: #fff;
+}
+
+
+
+
+@-webkit-keyframes slide {
+  0% {opacity: 0;left: 0;}
+  100% {opacity: 1;left: 0;}
+}
+
+@keyframes slide {
+  0% {opacity: 0;left: 0;}
+  100% {opacity: 1;left: 0;}
+}
+
+.popout {
+  animation: popout 1s ease;
+  -webkit-animation: popout 1s ease;
+}
+@keyframes popout {
+  from{transform:scale(0)}
+  80%{transform:scale(1.2)}
+  to{transform:scale(1)}
+}
+@-webkit-keyframes popout {
+  from{-webkit-transform:scale(0)}
+  80%{-webkit-transform:scale(1.2)}
+  to{-webkit-transform:scale(1)}
+}
+
+
+
+/////////////// CSS GRAPHIC ANIMATIONS STARTS HERE ///////////////
+// LOADER ANIMATION CSS STARTS HERE
+.loader {
+  width: 50px;
+  height: 50px;
+  animation-name: spin;
+  animation-duration: 500ms;
+  animation-iteration-count: infinite;
+  animation-timing-function: cubic-bezier(0.1, -0.6, 0.2, 0);
+}
+
+@keyframes spin {
+  from {
+      transform: rotate(0deg);
+  }
+  to {
+      transform: rotate(360deg);
+  }
+}
+
+// LOADER ANIMATION CSS ENDS HERE
+// // BUBBLE NOTIFICATION ANIMATION STARTS HERE
+.bubble-notify {
+  height: 9px;
+  width: 9px;
+  position: absolute;
+  text-align: center;
+  border-radius: 100px;
+  z-index: 1;
+  right: 0px;
+  top: 6px;
+}
+
+.bubble-notify-container ion-icon {
+  font-size: 20px !important;
+  position: relative;
+  top: 2px;
+}
+
+.bubble-notify .ripple {
+  position: absolute;
+  width: 30px;
+  height: 30px;
+  z-index: -1;
+  right: -10px;
+  top: -11px;
+  opacity: 0;
+  border-radius: 100px;
+  -webkit-animation: ripple 1.8s infinite;
+  animation: ripple 1.8s infinite;
+}
+
+@-webkit-keyframes ripple {
+  0% {
+      opacity: 1;
+      -webkit-transform: scale(0);
+      transform: scale(0)
+  }
+  100% {
+      opacity: 0;
+      -webkit-transform: scale(1);
+      transform: scale(1)
+  }
+}
+
+@keyframes ripple {
+  0% {
+      opacity: 1;
+      -webkit-transform: scale(0);
+      transform: scale(0)
+  }
+  100% {
+      opacity: 0;
+      -webkit-transform: scale(1);
+      transform: scale(1)
+  }
+}
+
+.bubble-notify .ripple:nth-child(2) {
+  animation-delay: .3s;
+  -webkit-animation-delay: .3s
+}
+
+.bubble-notify .ripple:nth-child(3) {
+  animation-delay: .6s;
+  -webkit-animation-delay: .6s
+}
+
+// BUBBLE NOTIFICATION ANIMATION ENDS HERE
+.graphic-animation {
+  margin: 0 auto;
+  width: 300px;
+}
+
+.pullDown {
+  animation-name: pullDown;
+  -webkit-animation-name: pullDown;
+  animation-duration: 1s;
+  -webkit-animation-duration: 1s;
+  animation-timing-function: ease-out;
+  -webkit-animation-timing-function: ease-out;
+  transform-origin: 50% 0%;
+  -ms-transform-origin: 50% 0%;
+  -webkit-transform-origin: 50% 0%;
+}
+
+@keyframes pullDown {
+  0% {
+      transform: scaleY(0.1);
+      opacity: 0;
+  }
+  40% {
+      transform: scaleY(1.02);
+  }
+  60% {
+      transform: scaleY(0.98);
+      opacity: 1;
+  }
+  80% {
+      transform: scaleY(1.01);
+  }
+  100% {
+      transform: scaleY(1);
+  }
+}
+
+@-webkit-keyframes pullDown {
+  0% {
+      -webkit-transform: scaleY(0.1);
+      opacity: 0;
+  }
+  40% {
+      -webkit-transform: scaleY(1.02);
+  }
+  60% {
+      -webkit-transform: scaleY(0.98);
+      opacity: 1;
+  }
+  80% {
+      -webkit-transform: scaleY(1.01);
+  }
+  100% {
+      -webkit-transform: scaleY(1);
+  }
+}
+
+.pullUp {
+  animation-name: pullUp;
+  -webkit-animation-name: pullUp;
+  animation-duration: 1.1s;
+  -webkit-animation-duration: 1.1s;
+  animation-timing-function: ease-out;
+  -webkit-animation-timing-function: ease-out;
+  transform-origin: 50% 100%;
+  -ms-transform-origin: 50% 100%;
+  -webkit-transform-origin: 50% 100%;
+}
+
+@keyframes pullUp {
+  0% {
+      transform: scaleY(0.1);
+  }
+  40% {
+      transform: scaleY(1.02);
+  }
+  60% {
+      transform: scaleY(0.98);
+  }
+  80% {
+      transform: scaleY(1.01);
+  }
+  100% {
+      transform: scaleY(1);
+  }
+}
+
+@-webkit-keyframes pullUp {
+  0% {
+      -webkit-transform: scaleY(0.1);
+  }
+  40% {
+      -webkit-transform: scaleY(1.02);
+  }
+  60% {
+      -webkit-transform: scaleY(0.98);
+  }
+  80% {
+      -webkit-transform: scaleY(1.01);
+  }
+  100% {
+      -webkit-transform: scaleY(1);
+  }
+}
+
+.pushDown {
+  animation-name: pushDown;
+  animation-delay: 0s;
+  animation-duration: 1s;
+  animation-timing-function: cubic-bezier(0.075, 0.82, 0.165, 1);
+  animation-iteration-count: 1;
+  transform-origin: 0% 0%;
+}
+
+@keyframes pushDown {
+  0% {
+      transform: scaleY(0);
+  }
+  100% {
+      transform: scaleY(1);
+  }
+}
+
+.expandUp,
+#panelSuccess,
+#panelReset,
+#panelservices,
+#panelAAction {
+  animation-name: expandUp;
+  -webkit-animation-name: expandUp;
+  animation-duration: 0.7s;
+  -webkit-animation-duration: 0.7s;
+  animation-timing-function: ease;
+  -webkit-animation-timing-function: ease;
+  visibility: visible !important;
+}
+
+@keyframes expandUp {
+  0% {
+      transform: translateY(100%) scale(0.6) scaleY(0.5);
+      opacity: 0;
+  }
+  100% {
+      transform: translateY(0%) scale(1) scaleY(1);
+      opacity: 1;
+  }
+}
+
+@-webkit-keyframes expandUp {
+  0% {
+      -webkit-transform: translateY(100%) scale(0.6) scaleY(0.5);
+      opacity: 0;
+  }
+  100% {
+      -webkit-transform: translateY(0%) scale(1) scaleY(1);
+      opacity: 1;
+  }
+}
+
+.fadeIn,
+#DataSuccess,
+#expSucc1,
+#DataRest,
+#expReset2,
+#checkReset,
+#Ellipse_138,
+#DataServ,
+#featherAServ,
+#feather2Serv,
+#searchServ,
+#BoardContServ,
+#card2Serv,
+#panelBAction,
+#Data2Action {
+  animation-name: fadeIn;
+  -webkit-animation-name: fadeIn;
+  animation-duration: 1.5s;
+  -webkit-animation-duration: 1.5s;
+  animation-timing-function: ease-in-out;
+  -webkit-animation-timing-function: ease-in-out;
+  visibility: visible !important;
+}
+
+@keyframes fadeIn {
+  0% {
+      opacity: 0.0;
+  }
+  100% {
+      opacity: 1;
+  }
+}
+
+@-webkit-keyframes fadeIn {
+  0% {
+      opacity: 0.0;
+  }
+  100% {
+      opacity: 1;
+  }
+}
+
+
+/*
+==============================================
+hatch
+==============================================
+*/
+
+.hatch,
+#checkSuccess,
+#checkReset,
+.custom-alert.success-alert .alert-title::before,
+.custom-alert.failure-alert .alert-title::before {
+  animation-name: hatch;
+  -webkit-animation-name: hatch;
+  animation-duration: 2s;
+  -webkit-animation-duration: 2s;
+  animation-timing-function: ease-in-out;
+  -webkit-animation-timing-function: ease-in-out;
+  transform-origin: 50% 100%;
+  -ms-transform-origin: 50% 100%;
+  -webkit-transform-origin: 50% 100%;
+  visibility: visible !important;
+}
+
+@keyframes hatch {
+  0% {
+      transform: rotate(0deg) scaleY(0);
+      opacity: 0;
+  }
+  20% {
+      transform: rotate(-2deg) scaleY(1.09);
+  }
+  35% {
+      transform: rotate(2deg) scaleY(0.9);
+  }
+  50% {
+      opacity: 1;
+      transform: rotate(-2deg);
+  }
+  65% {
+      transform: rotate(1deg);
+  }
+  80% {
+      transform: rotate(-1deg);
+  }
+  100% {
+      transform: rotate(0deg);
+  }
+}
+
+@-webkit-keyframes hatch {
+  0% {
+      -webkit-transform: rotate(0deg) scaleY(0);
+      opacity: 0;
+  }
+  20% {
+      -webkit-transform: rotate(-2deg) scaleY(1.09);
+  }
+  35% {
+      -webkit-transform: rotate(2deg) scaleY(0.9);
+  }
+  50% {
+      opacity: 1;
+      -webkit-transform: rotate(-2deg);
+  }
+  65% {
+      -webkit-transform: rotate(1deg);
+  }
+  80% {
+      -webkit-transform: rotate(-1deg);
+  }
+  100% {
+      -webkit-transform: rotate(0deg);
+  }
+}
+
+#ellipse1Reset,
+#card3Serv,
+#card1Serv,
+#Data1Action {
+  animation-name: ellipse1Reset;
+  -webkit-animation-name: ellipse1Reset;
+  animation-duration: 1.1s;
+  -webkit-animation-duration: 1.1s;
+  animation-timing-function: ease-out;
+  -webkit-animation-timing-function: ease-out;
+  transform-origin: 50% 50%;
+  -ms-transform-origin: 50% 50%;
+  -webkit-transform-origin: 50% 50%;
+}
+
+@keyframes ellipse1Reset {
+  0% {
+      transform: scaleY(0.1);
+      opacity: 0;
+  }
+  40% {
+      transform: scaleY(1.02);
+  }
+  60% {
+      transform: scaleY(0.98);
+  }
+  80% {
+      transform: scaleY(1.01);
+  }
+  100% {
+      transform: scaleY(0.98);
+  }
+  80% {
+      transform: scaleY(1.01);
+  }
+  100% {
+      transform: scaleY(1);
+  }
+}
+
+@-webkit-keyframes ellipse1Reset {
+  0% {
+      -webkit-transform: scaleY(0.1);
+  }
+  40% {
+      -webkit-transform: scaleY(1.02);
+  }
+  60% {
+      -webkit-transform: scaleY(0.98);
+  }
+  80% {
+      -webkit-transform: scaleY(1.01);
+  }
+  100% {
+      -webkit-transform: scaleY(0.98);
+  }
+  80% {
+      -webkit-transform: scaleY(1.01);
+  }
+  100% {
+      -webkit-transform: scaleY(1);
+  }
+}
+
+#ellipse2Reset,
+#ellipse3Reset {
+  animation-name: ellipse2Reset;
+  -webkit-animation-name: ellipse2Reset;
+  animation-duration: 1.8s;
+  -webkit-animation-duration: 1.8s;
+  animation-timing-function: ease-out;
+  -webkit-animation-timing-function: ease-out;
+  transform-origin: 50% 50%;
+  -ms-transform-origin: 50% 50%;
+  -webkit-transform-origin: 50% 50%;
+}
+
+@keyframes ellipse2Reset {
+  0% {
+      transform: scaleY(0.1);
+      opacity: 0;
+  }
+  40% {
+      transform: scaleY(1.02);
+  }
+  60% {
+      transform: scaleY(0.98);
+  }
+  80% {
+      transform: scaleY(1.01);
+  }
+  100% {
+      transform: scaleY(0.98);
+  }
+  80% {
+      transform: scaleY(1.01);
+  }
+  100% {
+      transform: scaleY(1);
+  }
+}
+
+@-webkit-keyframes ellipse2Reset {
+  0% {
+      -webkit-transform: scaleY(0.1);
+  }
+  40% {
+      -webkit-transform: scaleY(1.02);
+  }
+  60% {
+      -webkit-transform: scaleY(0.98);
+  }
+  80% {
+      -webkit-transform: scaleY(1.01);
+  }
+  100% {
+      -webkit-transform: scaleY(0.98);
+  }
+  80% {
+      -webkit-transform: scaleY(1.01);
+  }
+  100% {
+      -webkit-transform: scaleY(1);
+  }
+}
+
+@keyframes ellipse3Reset {
+  0% {
+      transform: scaleY(0.1);
+      opacity: 0;
+  }
+  40% {
+      transform: scaleY(1.02);
+  }
+  60% {
+      transform: scaleY(0.98);
+  }
+  80% {
+      transform: scaleY(1.01);
+  }
+  100% {
+      transform: scaleY(0.98);
+  }
+  80% {
+      transform: scaleY(1.01);
+  }
+  100% {
+      transform: scaleY(1);
+  }
+}
+
+@-webkit-keyframes ellipse3Reset {
+  0% {
+      -webkit-transform: scaleY(0.1);
+  }
+  40% {
+      -webkit-transform: scaleY(1.02);
+  }
+  60% {
+      -webkit-transform: scaleY(0.98);
+  }
+  80% {
+      -webkit-transform: scaleY(1.01);
+  }
+  100% {
+      -webkit-transform: scaleY(0.98);
+  }
+  80% {
+      -webkit-transform: scaleY(1.01);
+  }
+  100% {
+      -webkit-transform: scaleY(1);
+  }
+}
+
+#ellipse4Reset {
+  animation-name: ellipse4Reset;
+  -webkit-animation-name: ellipse4Reset;
+  animation-duration: 2.2s;
+  -webkit-animation-duration: 2.2s;
+  animation-timing-function: ease-out;
+  -webkit-animation-timing-function: ease-out;
+  transform-origin: 50% 50%;
+  -ms-transform-origin: 50% 50%;
+  -webkit-transform-origin: 50% 50%;
+}
+
+@keyframes ellipse4Reset {
+  0% {
+      transform: scaleY(0.1);
+      opacity: 0;
+  }
+  40% {
+      transform: scaleY(1.02);
+  }
+  60% {
+      transform: scaleY(0.98);
+  }
+  80% {
+      transform: scaleY(1.01);
+  }
+  100% {
+      transform: scaleY(0.98);
+  }
+  80% {
+      transform: scaleY(1.01);
+  }
+  100% {
+      transform: scaleY(1);
+  }
+}
+
+@-webkit-keyframes ellipse4Reset {
+  0% {
+      -webkit-transform: scaleY(0.1);
+  }
+  40% {
+      -webkit-transform: scaleY(1.02);
+  }
+  60% {
+      -webkit-transform: scaleY(0.98);
+  }
+  80% {
+      -webkit-transform: scaleY(1.01);
+  }
+  100% {
+      -webkit-transform: scaleY(0.98);
+  }
+  80% {
+      -webkit-transform: scaleY(1.01);
+  }
+  100% {
+      -webkit-transform: scaleY(1);
+  }
+}
+
+.tossing,
+#expSucc2,
+#expSucc3,
+#expReset1,
+#expReset3 {
+  animation-name: tossing;
+  -webkit-animation-name: tossing;
+  animation-duration: 1.5s;
+  -webkit-animation-duration: 1.5s;
+  animation-timing-function: ease-in-out;
+  -webkit-animation-timing-function: ease-in-out;
+  animation-iteration-count: 1;
+  -webkit-animation-iteration-count: 1;
+  transform: rotate(-2deg);
+}
+
+@keyframes tossing {
+  0% {
+      transform: rotate(-4deg);
+      opacity: 0;
+  }
+  50% {
+      transform: rotate(4deg);
+      opacity: 1;
+  }
+  100% {
+      transform: rotate(-2deg);
+  }
+}
+
+#BoardServ {
+  animation-name: BoardServ;
+  -webkit-animation-name: BoardServ;
+  animation-duration: 1.2s;
+  -webkit-animation-duration: 1.2s;
+  animation-timing-function: ease-in-out;
+  -webkit-animation-timing-function: ease-in-out;
+  animation-iteration-count: 1;
+  -webkit-animation-iteration-count: 1;
+}
+
+@keyframes BoardServ {
+  0% {
+      transform: rotate(-4deg);
+      opacity: 0;
+  }
+  50% {
+      transform: rotate(4deg);
+  }
+  100% {
+      transform: rotate(0deg);
+      opacity: 1;
+  }
+}
+
+
+/*
+==============================================
+bigEntrance
+==============================================
+*/
+
+.bigEntrance,
+#Path_1194 {
+  animation-name: bigEntrance;
+  -webkit-animation-name: bigEntrance;
+  animation-duration: 1.2s;
+  -webkit-animation-duration: 1.2s;
+  animation-timing-function: ease-out;
+  -webkit-animation-timing-function: ease-out;
+  transform-origin: 100% -100%;
+  -ms-transform-origin: 100% -100%;
+  -webkit-transform-origin: 100% -100%;
+  visibility: visible !important;
+}
+
+@keyframes bigEntrance {
+  0% {
+      transform: scale(0.2);
+      opacity: 0.2;
+  }
+  100% {
+      transform: scale(1);
+      opacity: 1;
+  }
+}
+
+@-webkit-keyframes bigEntrance {
+  0% {
+      transform: scale(0.2);
+      opacity: 0.2;
+  }
+  100% {
+      transform: scale(1);
+      opacity: 1;
+  }
+}
+
+#Path_1195 {
+  animation-name: Path_1195;
+  -webkit-animation-name: Path_1195;
+  animation-duration: 1.2s;
+  -webkit-animation-duration: 1.2s;
+  animation-timing-function: ease-out;
+  -webkit-animation-timing-function: ease-out;
+  transform-origin: 100% -130%;
+  -ms-transform-origin: 100% -130%;
+  -webkit-transform-origin: 100% -130%;
+  visibility: visible !important;
+}
+
+@keyframes Path_1195 {
+  0% {
+      transform: scale(0);
+      opacity: 0.2;
+  }
+  100% {
+      transform: scale(1);
+      opacity: 1;
+  }
+}
+
+@-webkit-keyframes Path_1195 {
+  0% {
+      transform: scale(0.2);
+      opacity: 0.2;
+  }
+  100% {
+      transform: scale(1);
+      opacity: 1;
+  }
+}
+
+#menuServ {
+  animation-name: menuServ;
+  -webkit-animation-name: menuServ;
+  animation-duration: 0.5s;
+  -webkit-animation-duration: 0.5s;
+  animation-timing-function: ease-out;
+  -webkit-animation-timing-function: ease-out;
+  transform-origin: 30% 20%;
+  -ms-transform-origin: 30% 20%;
+  -webkit-transform-origin: 30% 20%;
+  visibility: visible !important;
+}
+
+@keyframes menuServ {
+  0% {
+      transform: scale(0);
+      opacity: 0;
+  }
+  100% {
+      transform: scale(1);
+      opacity: 1;
+  }
+}
+
+@-webkit-keyframes menuServ {
+  0% {
+      transform: scale(0);
+      opacity: 0;
+  }
+  100% {
+      transform: scale(1);
+      opacity: 1;
+  }
+}
+
+.footer_icon
+{
+  font-size: 25px;
+}
+
+/////////////// CSS GRAPHIC ANIMATIONS ENDS HERE ///////////////
+
+.searchbar-input.sc-ion-searchbar-md {
+  border-radius: 10px;
+  padding-left: 20px;
+}

@@ -1,0 +1,41 @@
+<ion-content class="body_bg">
+  <ion-grid>
+    <ion-row>
+      <ion-col size="12" class="backbutton_placement" (click)="backAction();">
+        <ion-icon name="arrow-back-circle-outline"></ion-icon>
+      </ion-col>
+    </ion-row>
+  </ion-grid>
+  <ion-grid>
+    <ion-row>
+      <ion-col size="12" class="text-center">
+        <img src="assets/img/logo.png" class="main_image">
+      </ion-col>
+    </ion-row>
+  </ion-grid>
+  <ion-grid class="bottom_area pullUp">
+    <ion-row>
+      <ion-col size="12">
+        <h1>SIGN IN</h1>
+        <small>Sign in with your i-track username and password</small>
+      </ion-col>
+      <ion-col size="12">
+        <ion-item>
+          <ion-label position="floating">Username</ion-label>
+          <ion-input type="text" [(ngModel)]="username"></ion-input>
+        </ion-item>
+        <ion-item>
+          <ion-label position="floating">Password</ion-label>
+          <ion-input type="password" [(ngModel)]="password"></ion-input>
+        </ion-item>
+      </ion-col>
+      <ion-col size="12" class="text-center">
+        <ion-button expand="block" fill="outline" (click)="doLogin();">LOGIN</ion-button>
+        <p (click)="navigation('signup');">
+          <small>Don't Have any Account.. Please signup Here</small>
+        </p>
+      </ion-col>
+      <ion-col size="12"><br/><br/></ion-col>
+    </ion-row>
+  </ion-grid>
+  </ion-content>

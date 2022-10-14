@@ -1,0 +1,84 @@
+<ion-header>
+  <ion-toolbar>
+    <ion-buttons slot="start">
+      <ion-back-button></ion-back-button>
+    </ion-buttons>
+    <ion-title>Sign up</ion-title>
+  </ion-toolbar>
+
+</ion-header>
+
+<ion-content class="padding">
+  <!-- <ion-grid>
+    <ion-row>
+      <ion-col size="12" class="backbutton_placement" (click)="backAction();">
+        <ion-icon name="arrow-back-circle-outline"></ion-icon>
+      </ion-col>
+    </ion-row>
+  </ion-grid> -->
+  <ion-grid>
+    <ion-row>
+      <ion-col size="12" class="text-center">
+        <img src="assets/img/fulllogo.png" class="main_image">
+      </ion-col>
+    </ion-row>
+  </ion-grid>
+  <ion-grid>
+    <ion-row>
+      <ion-col size="12">
+        <h1>SIGN UP</h1>
+        <small>Enter valid information below to create an account</small>
+      </ion-col>
+      <ion-col size="6">
+        <ion-item>
+          <ion-label position="floating">Display Name</ion-label>
+          <ion-input type="text" [(ngModel)]="name"></ion-input>
+        </ion-item>
+      </ion-col>
+      <ion-col size="6">
+        <ion-item>
+          <ion-label position="floating">Contact No</ion-label>
+          <ion-input type="number" [(ngModel)]="mobile"></ion-input>
+        </ion-item>
+      </ion-col>
+      <ion-col size="12">
+        <ion-item>
+          <ion-label position="floating">Email Address</ion-label>
+          <ion-input type="text" [(ngModel)]="email"></ion-input>
+        </ion-item>
+      </ion-col>
+      <ion-col size="12">
+        <ion-item>
+          <ion-label position="floating">Username</ion-label>
+          <ion-input type="text" [(ngModel)]="username"></ion-input>
+        </ion-item>
+      </ion-col>
+      <ion-col size="12">
+        <ion-item>
+          <ion-label position="floating">Password</ion-label>
+          <ion-input type="password" [(ngModel)]="password"></ion-input>
+        </ion-item>
+      </ion-col>
+      <ion-col size="12">
+        <ion-item>
+          <ion-label position="floating">Country</ion-label>
+          <ion-select placeholder="Country" [(ngModel)]="country">
+            <ion-select-option *ngFor="let country of countries" [value]="country.id" >{{country.title}}</ion-select-option>
+          </ion-select>
+        </ion-item>
+      </ion-col>
+      <ion-col size="12">
+        <ion-item>
+          <ion-label position="floating">Address</ion-label>
+          <ion-input type="text" [(ngModel)]="address"></ion-input>
+        </ion-item>
+      </ion-col>
+      <ion-col size="12" class="text-center">
+        <ion-button expand="block" fill="outline" (click)="doSignup();">Create Account</ion-button>
+        <p (click)="navigation('login');">
+          <small>Already Have an Account.. Login Here</small>
+        </p>
+      </ion-col>
+    </ion-row>
+  </ion-grid>
+  </ion-content>

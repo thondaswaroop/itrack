@@ -1,0 +1,7 @@
+{
+  "name": "itrack1",
+  "integrations": {
+    "cordova": {}
+  },
+  "type": "angular"
+}
