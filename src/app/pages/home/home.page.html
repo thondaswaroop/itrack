@@ -1,0 +1,70 @@
+<ion-content class="bg_color">
+  <app-header title="Home"></app-header>
+  <ion-grid>
+    <ion-row>
+      <ion-col size="12">
+        <ion-card class="banner_area">
+          <ion-slides pager="true" autoplay="5000" loop="true" speed="500" class="slides" [options]="slideOptsOne">
+            <ion-slide *ngFor="let banner of banners" [ngStyle]="{'background-image': 'url('+ banner.image +')', 'background-size': 'cover','background-position': 'bottom center'}" (click)="redirectbanner(banner.link);">
+              <!-- <ion-slide  [ngStyle]="{'background-image': 'url(assets/img/banner.png)', 'background-size': 'cover','background-position': 'bottom center'}"> -->
+              </ion-slide>
+          </ion-slides>
+        </ion-card>
+      </ion-col>
+    </ion-row>
+  </ion-grid>
+  <ion-grid>
+    <ion-row>
+      <ion-col size="12" class="text-center">
+        <ion-text class="heading">Track your Shipment</ion-text>
+        <p class="normaltext">Please enter Tracking Number</p>
+      </ion-col>
+    </ion-row>
+    <ion-row>
+      <ion-col size="12">
+        <ion-searchbar animated class="search_bar" placeholder="Enter Tracking Number" (click)="menuNav('orderview');"></ion-searchbar>
+      </ion-col>
+    </ion-row>
+  </ion-grid>
+  <ion-grid>
+    <ion-row>
+      <ion-col size="6" (click)="menuNav('shipment');">
+        <ion-card>
+          <ion-card-content>
+            <ion-row>
+              <ion-col size="12" class="text-center">
+                <img src="assets/img/track_icon.png" class="profile_icon">
+              </ion-col>
+              <ion-col size="12" >
+                <h2 class="font_bold">Cargo Drop</h2>
+                <small>Have your packages or items dropped at one of our listed Hubs and have them shipped to your preferred locations. </small>
+              </ion-col>
+            </ion-row>
+          </ion-card-content>
+        </ion-card>
+      </ion-col>
+      <ion-col size="6" (click)="menuNav('orders');">
+        <ion-card>
+          <ion-card-content>
+            <ion-row>
+              <ion-col size="8">
+                <img src="assets/img/orders_icon.png" class="profile_icon">
+              </ion-col>
+              <ion-col size="4" class="record_count">
+                <h2>{{shipments.length}}</h2>
+              </ion-col>
+              <ion-col size="12" >
+                <h2 class="font_bold">My Shipments</h2>
+                <small>View your current or past shipments. This information can be very useful when making personal or business decisions.</small>
+              </ion-col>
+            </ion-row>
+          </ion-card-content>
+        </ion-card>
+      </ion-col>
+    </ion-row>
+  </ion-grid>
+
+  <div style="height: 100px"><br/></div>
+  </ion-content>
+
+<app-footer highlight="home"></app-footer>

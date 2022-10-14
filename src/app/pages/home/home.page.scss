@@ -1,0 +1,74 @@
+
+.textuppercase
+{
+  color:#fff;
+  text-transform: uppercase;
+}
+.textwhite
+{
+  color: #fff;
+  margin-top: 6px;
+}
+
+ion-slides {
+  height: 200px;
+}
+
+ion-slide.swiper-slide.swiper-slide-active.active {
+  border-bottom: 1px solid #000;
+  border-width: unset;
+}
+
+ion-slide.swiper-slide.active {
+  border-bottom: 1px solid #000;
+  border-width: unset;
+}
+ion-footer
+{
+  background: transparent;
+}
+
+.scroll_area
+{
+  overflow: scroll;
+}
+
+ion-fab-button
+{
+  --background:#f00;
+}
+
+.heading
+{
+  color: #fff;
+  font-family: "Gotham-bold";
+  font-weight: bold;
+  font-size: 30px;
+}
+.normaltext
+{
+  font-size: 10px;
+  color: #fff;
+}
+.search_bar
+{
+  font-family: "Gotham-book";
+}
+
+.profile_icon
+{
+  height: 60px;
+}
+.record_count
+{
+  margin-top: 15px;
+  font-size: 20px;
+}
+h3
+{
+  font-size: 20px;
+}
+.font_bold
+{
+  font-size: 14px!important;
+}

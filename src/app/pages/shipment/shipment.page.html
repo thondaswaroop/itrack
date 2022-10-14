@@ -1,0 +1,67 @@
+<ion-content class="bg_color">
+  <app-header title="Cargo Drop"></app-header>
+  <ion-grid style="margin-top: 20px;">
+    <ion-row>
+      <ion-col size="12">
+        <ion-item class="select_box">
+          <ion-label position="floating">Select Country</ion-label>
+          <ion-select placeholder="Select Country" [(ngModel)]="country" (ionChange)="countryselect(country)">
+            <ion-select-option *ngFor="let country of countries" [value]="country.id" >{{country.title}}</ion-select-option>
+          </ion-select>
+        </ion-item>
+      </ion-col>
+    </ion-row>
+  </ion-grid>
+  <ion-grid>
+    <ion-row>
+      <ion-col size="12">
+
+        <ion-accordion-group>
+          <ion-accordion [value]="provider.hub.title" *ngFor="let provider of providers" class="accordian_box">
+            <ion-item slot="header" color="light" lines="none">
+              <ion-label>{{provider.hub.title}}</ion-label>
+            </ion-item>
+            <div class="ion-padding" slot="content">
+              <div>
+                <div><small>Location : {{provider.hub.location}}</small></div>
+                <div><small>Business Provider : {{provider.vendors.business}}</small></div>
+                <div><small>Address : {{provider.vendors.address}}</small></div>
+                <div><small>MailBox : {{provider.vendors.mailbox}}</small></div>
+                <div><small>Description : {{provider.vendors.description}}</small></div>
+                <div><small>Contact Info : {{provider.vendors.contact}}</small></div>
+                <div><small>Notes : {{provider.vendors.notes}}</small></div>
+              </div>
+            </div>
+          </ion-accordion>
+        </ion-accordion-group>
+        <!-- <ion-card  (click)="pageOpen('order',ship.id);">
+          <ion-card-content>
+
+            <ion-row>
+              <ion-col size="2">
+                <ion-icon name="shield-checkmark-outline" class="box_icon"></ion-icon>
+              </ion-col>
+              <ion-col size="7">
+                <b>{{provider.hub.title}}</b>
+                <div>
+                  <small>Location : {{provider.hub.location}}</small>
+                  <div><small>Business Provider : {{provider.vendors.business}}</small></div>
+                  <div><small>Address : {{provider.vendors.address}}</small></div>
+                  <div><small>MailBox : {{provider.vendors.mailbox}}</small></div>
+                  <div><small>Description : {{provider.vendors.description}}</small></div>
+                  <div><small>Contact Info : {{provider.vendors.contact}}</small></div>
+                  <div><small>Notes : {{provider.vendors.notes}}</small></div>
+                </div>
+              </ion-col>
+              <ion-col size="3" style="margin-top: 8%;">
+                <ion-icon name="call-outline" class="box_icon"></ion-icon>
+              </ion-col>
+            </ion-row>
+          </ion-card-content>
+        </ion-card> -->
+      </ion-col>
+    </ion-row>
+  </ion-grid>
+</ion-content>
+
+<app-footer highlight="home"></app-footer>

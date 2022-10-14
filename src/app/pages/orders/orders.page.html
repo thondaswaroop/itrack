@@ -1,0 +1,45 @@
+<ion-content class="bg_color">
+  <app-header title="My Shipments"></app-header>
+  <ion-grid>
+    <ion-row>
+      <ion-col size="12">
+        <ion-card *ngFor="let ship of shipments" (click)="pageOpen('order',ship.id);">
+          <ion-card-content>
+            <ion-row>
+              <ion-col size="2">
+                <ion-icon name="bicycle-outline" class="box_icon" *ngIf="ship.status=='2'"></ion-icon>
+                <ion-icon name="cube-outline" class="box_icon" *ngIf="ship.status=='0'"></ion-icon>
+                <ion-icon name="file-tray-stacked-outline" class="box_icon" *ngIf="ship.status=='1'"></ion-icon>
+              </ion-col>
+              <ion-col size="7">
+                <b>#{{ship.tracking_num}}</b>
+                <div>
+                  <small>{{ship.current_status}}</small>
+                  <div><small>Payment Status : Prepaid</small></div>
+                  <div><small>Shipping Price : {{ship.amount}}</small></div>
+                </div>
+              </ion-col>
+              <ion-col size="3" style="margin-top: 8%;">
+                <b>{{ship.date}}</b>
+              </ion-col>
+            </ion-row>
+            <!-- <ion-row class="card_footer">
+              <ion-col size="3" class="text-center">
+                <ion-icon name="eye-outline"></ion-icon> View
+              </ion-col>
+              <ion-col size="5" class="text-center">
+                <ion-icon name="qr-code-outline"></ion-icon> Generate QR
+              </ion-col>
+              <ion-col size="4" class="text-center">
+                <ion-icon name="eye-outline"></ion-icon> View
+              </ion-col>
+            </ion-row> -->
+          </ion-card-content>
+        </ion-card>
+      </ion-col>
+    </ion-row>
+  </ion-grid>
+  <div style="height: 100px"><br/></div>
+  </ion-content>
+
+<app-footer highlight="home"></app-footer>
