@@ -13,18 +13,23 @@ export class AppComponent {
     this.initializeApp();
   }
 
-  async logincheck()
+  // async logincheck()
+  // {
+  //   await this.storage.isLoggedIn().then(data => {
+  //     if(data=='yes')
+  //     {
+  //       this.navCtrl.navigateRoot('home');
+  //     }
+  //     else
+  //     {
+  //       this.navCtrl.navigateRoot('welcome');
+  //     }
+  //   });
+  // }
+
+  splashScreen()
   {
-    await this.storage.isLoggedIn().then(data => {
-      if(data=='yes')
-      {
-        this.navCtrl.navigateRoot('home');
-      }
-      else
-      {
-        this.navCtrl.navigateRoot('welcome');
-      }
-    });
+    this.navCtrl.navigateRoot('splash');
   }
 
   initializeApp()
@@ -33,7 +38,8 @@ export class AppComponent {
       this.storage_n.create();
     });
     this.storage.init();
-    this.logincheck();
+    // this.logincheck();
+    this.splashScreen();
   }
 
   menuNav(vl)

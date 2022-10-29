@@ -50,6 +50,10 @@ const routes: Routes = [
   {
     path: 'sample',
     loadChildren: () => import('./pages/sample/sample.module').then( m => m.SamplePageModule)
+  },
+  {
+    path: 'splash',
+    loadChildren: () => import('./pages/splash/splash.module').then( m => m.SplashPageModule)
   }
 ];
 

@@ -1,9 +1,46 @@
-<ion-header>
-  <ion-toolbar>
-    <ion-title>profile</ion-title>
-  </ion-toolbar>
-</ion-header>
-
-<ion-content>
-
+<ion-content class="bg_color">
+  <app-header title="Choose Preferred Hubs"></app-header>
+  <ion-grid style="margin-top: 20px;">
+    <ion-row>
+      <ion-col size="12" class="text-center">
+        <ion-label class="text-white">Customer Information </ion-label>
+        <ion-list class="background_transparent">
+          <ion-item>
+            <ion-label>Customer ID : {{customer.cid}}</ion-label>
+          </ion-item>
+          <ion-item>
+            <ion-label>Username : {{customer.username}}</ion-label>
+          </ion-item>
+        </ion-list>
+      </ion-col>
+    </ion-row>
+    <ion-row>
+      <ion-col size="12" class="text-center">
+        <ion-label class="text-white">Choose My Prefered Hubs <br/><br/></ion-label>
+        <ion-item class="select_box">
+          <ion-label position="floating">Select Country</ion-label>
+          <ion-select placeholder="Select Country" [(ngModel)]="country" (ionChange)="countryselect(country)">
+            <ion-select-option *ngFor="let country of countries" [value]="country.id" >{{country.title}}</ion-select-option>
+          </ion-select>
+        </ion-item>
+      </ion-col>
+    </ion-row>
+  </ion-grid>
+  <ion-grid *ngIf="providers.length>0">
+    <ion-row>
+      <ion-col size="12">
+        <ion-list>
+          <ion-item *ngFor="let provider of providers">
+            <ion-checkbox slot="start" [(ngModel)]="provider.checked" (click)="selectMember(provider)"></ion-checkbox>
+            <ion-label>{{provider.hub.title}}</ion-label>
+          </ion-item>
+        </ion-list>
+      </ion-col>
+      <ion-col size="12" class="text-center">
+        <ion-button expand="block" (click)="submitProviders();">Update Selected Preferred Hubs</ion-button>
+      </ion-col>
+    </ion-row>
+  </ion-grid>
 </ion-content>
+
+<app-footer highlight="home"></app-footer>
