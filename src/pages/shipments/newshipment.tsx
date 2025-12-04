@@ -3,7 +3,6 @@ import React, { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 import { Input, Button, Modal, Select } from "../../components";
-
 import Label from "../../components/form/Label";
 import { Icon } from "../../utils/icons";
 import ComponentCard from "../../components/common/ComponentCard";
@@ -11,8 +10,10 @@ import ComponentCard from "../../components/common/ComponentCard";
 /* =========================
    Types
 ========================= */
-type Mode = "AIR" | "OCEAN" | "ROAD";
+type Mode = "AIR" | "OCEAN" | "GROUND";
 type CargoType = "Others" | "Automobile";
+type PaymentTerm = "PREPAID" | "COLLECT";
+type Condition = "GOOD" | "DAMAGED" | "HOLD";
 
 type Party = {
   id: string;
@@ -28,6 +29,8 @@ type UnitType = "CARTON(S)" | "PALLET(S)" | "BAG(S)" | "BOX(ES)";
 
 type PackageRow = {
   id: string;
+  packageId?: string;
+  qrCode?: string;
   length: number | "";
   width: number | "";
   height: number | "";
@@ -40,30 +43,40 @@ type PackageRow = {
   actWeightKg: number | "";
   date?: string;
   blNo?: string;
+  description: string; // REQUIRED
+  declaredValue?: number | "";
+  storageShelf?: string;
 };
 
+type UploadedDoc = { id: string; name: string; size: number };
+
 type FormState = {
-  // Header (from screenshot)
+  // Header
   wrNo: string;
-  receivedAt: string; // *Received Date/Time
-  loadedAt?: string; // Loaded Date/Time
-  location: string; // Location (hub/warehouse)
-  shipper: Party | null; // Shipper (Customer)
-  consignee: Party | null; // Consignee (Receiver)
-  deliveredCarrier?: string; // Delivered Carrier
-  cargoType: CargoType; // Cargo Type
-  receivedBy?: string; // Received By
-  maker?: string; // Maker
-  deliveredBy?: string; // Delivered By
-  office?: string; // *Office
-  poNo?: string; // P.O. No.
-  remark?: string; // Remark
-  truckBlNo?: string; // Truck B/L No.
-  amount?: number | ""; // Amount
-  hazardous?: boolean; // Hazardous Goods
-  heatTreatedPallets?: boolean; // Heat Treated Pallets
-  checkNo?: string; // Check No.
-  commodity?: string; // Commodity
+  receivedAt: string;
+  loadedAt?: string;
+  location: string;
+  shipper: Party | null;
+  consignee: Party | null;
+  cargoType: CargoType;
+  receivedBy?: string;
+  receivedByUserId?: string;
+  office?: string;
+  poNo?: string;
+  remark?: string;
+  truckBlNo?: string;
+  amount?: number | "";
+  hazardous?: boolean;
+  heatTreatedPallets?: boolean;
+  checkNo?: string;
+  commodity?: string;
+
+  // Receiving specific
+  paymentTerm: PaymentTerm;
+  packageCondition: Condition;
+  holdReason?: string;
+  documents?: UploadedDoc[];
+  customerBoxId?: string;
 
   // Route / Mode
   mode: Mode;
@@ -72,7 +85,7 @@ type FormState = {
   destCountry: string;
   destHub: string;
 
-  // Items table
+  // Items
   items: PackageRow[];
 
   // Notify
@@ -80,7 +93,7 @@ type FormState = {
 }
 
 /* =========================
-   Data (mock - replace with API)
+   Mock data
 ========================= */
 const COUNTRIES = ["India", "United Arab Emirates", "USA", "UK", "Germany", "Singapore"];
 const HUBS_BY_COUNTRY: Record<string, string[]> = {
@@ -94,17 +107,29 @@ const HUBS_BY_COUNTRY: Record<string, string[]> = {
 
 /* =========================
    Small UI helpers
+   - unified Field (fixes inline error placement)
 ========================= */
-const Field: React.FC<{ label: string; required?: boolean; children: React.ReactNode }> = ({ label, required, children }) => (
-  <div className="space-y-1">
-    <Label>
-      {label} {required ? <span className="text-[var(--color-danger)]">*</span> : null}
-    </Label>
-    {children}
-  </div>
-);
+const Field: React.FC<{
+  label?: string;
+  required?: boolean;
+  error?: string;
+  className?: string;
+  children: React.ReactNode;
+}> = ({ label, required, error, className = "", children }) => {
+  return (
+    <div className={`flex flex-col ${className}`}>
+      {label && (
+        <Label className="mb-1">
+          {label} {required ? <span className="text-[var(--color-danger)]">*</span> : null}
+        </Label>
+      )}
+      <div className="w-full">{children}</div>
+      {error && <p className="text-xs text-[var(--color-danger)] mt-1 leading-tight">{error}</p>}
+    </div>
+  );
+};
 
-// Unit conversions (single definitions)
+// Unit conversions
 const cmToCbm = (l?: number | "", w?: number | "", h?: number | "") =>
   l && w && h ? (Number(l) * Number(w) * Number(h)) / 1_000_000 : 0;
 const inchToCft = (l?: number | "", w?: number | "", h?: number | "") =>
@@ -112,14 +137,14 @@ const inchToCft = (l?: number | "", w?: number | "", h?: number | "") =>
 const kgToLbs = (kg?: number | "") => (kg ? Number(kg) * 2.20462 : 0);
 
 /* =========================
-   Party selection (keeps your behaviour)
+   PartySelect (keeps behaviour)
 ========================= */
 const PartySelect: React.FC<{
   value: Party | null;
   label: string;
   onSelect: (p: Party) => void;
   onClear: () => void;
-  placeholder: string;
+  placeholder?: string;
   onCreateNew: () => void;
 }> = ({ value, label, onSelect, onClear, placeholder, onCreateNew }) => {
   const [q, setQ] = useState("");
@@ -199,7 +224,88 @@ const PartySelect: React.FC<{
 };
 
 /* =========================
-   Page: NewShipment (with Select-driven countries/hubs)
+   ConfirmReceiptModal
+========================= */
+const ConfirmReceiptModal: React.FC<{
+  isOpen: boolean;
+  onClose: () => void;
+  onConfirm: () => Promise<void>;
+  formState: FormState;
+  totals: { totalPkg: number; totalPcs: number; cbm: number; cft: number; actKg: number; actLbs: number };
+}> = ({ isOpen, onClose, onConfirm, formState, totals }) => {
+  if (!isOpen) return null;
+  return (
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      title="Confirm Warehouse Receipt"
+      size="lg"
+      dismissible
+      showCloseIcon
+      footer={
+        <>
+          <Button variant="outline" tone="neutral" onClick={onClose}>Cancel</Button>
+          <Button variant="solid" tone="primary" onClick={onConfirm}>Confirm & Print</Button>
+        </>
+      }
+    >
+      <div className="space-y-4 p-2">
+        <div className="text-sm">
+          <div><strong>WR No:</strong> {formState.wrNo}</div>
+          <div><strong>Received At:</strong> {new Date(formState.receivedAt).toLocaleString()}</div>
+          <div><strong>Location:</strong> {formState.location}</div>
+          <div><strong>Payment:</strong> {formState.paymentTerm}</div>
+          <div><strong>Condition:</strong> {formState.packageCondition}{formState.packageCondition !== "GOOD" && formState.holdReason ? ` — ${formState.holdReason}` : ""}</div>
+        </div>
+
+        <hr />
+
+        <div>
+          <div className="font-medium mb-2">Shipper</div>
+          <div className="text-sm">{formState.shipper?.name ?? "—"} {formState.shipper?.email ? `• ${formState.shipper.email}` : ""}</div>
+        </div>
+
+        <div>
+          <div className="font-medium mt-3 mb-2">Consignee</div>
+          <div className="text-sm">{formState.consignee?.name ?? "—"} {formState.consignee?.email ? `• ${formState.consignee.email}` : ""}</div>
+        </div>
+
+        <div>
+          <div className="font-medium mt-3 mb-2">Packages</div>
+          <div className="max-h-48 overflow-auto border rounded p-2">
+            <table className="w-full text-sm">
+              <thead className="text-[var(--color-textMuted)] text-xs">
+                <tr><th className="p-1">#</th><th className="p-1">Dim (L×W×H)</th><th className="p-1">Unit</th><th className="p-1">Wt (kg)</th><th className="p-1">Description</th></tr>
+              </thead>
+              <tbody>
+                {formState.items.map((it, i) => (
+                  <tr key={it.id} className="border-t">
+                    <td className="p-1 text-xs">{i + 1}</td>
+                    <td className="p-1 text-xs">{it.length || "-"} × {it.width || "-"} × {it.height || "-"} {it.dimUnit}</td>
+                    <td className="p-1 text-xs">{it.unit} / {it.pkg || 0} pkgs</td>
+                    <td className="p-1 text-xs">{it.actWeightKg || 0}</td>
+                    <td className="p-1 text-xs">{it.description || "—"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div className="mt-3 text-sm">
+          <div><strong>Totals:</strong> Packages {totals.totalPkg} • Pieces {totals.totalPcs} • CBM {totals.cbm.toFixed(3)} • Weight {totals.actKg} kg</div>
+        </div>
+
+        <div className="mt-3 text-sm text-[var(--color-textMuted)]">
+          You will be able to preview and print the receipt after confirmation.
+        </div>
+      </div>
+    </Modal>
+  );
+};
+
+/* =========================
+   Page: NewShipment (Receiving only)
 ========================= */
 const NewShipment: React.FC = () => {
   const navigate = useNavigate();
@@ -216,9 +322,9 @@ const NewShipment: React.FC = () => {
       shipper: null,
       consignee: null,
 
-      deliveredCarrier: "",
       cargoType: "Others",
       receivedBy: "Super Admin",
+      receivedByUserId: "U-0001",
       office: "HCT",
       poNo: "",
       remark: "",
@@ -229,24 +335,47 @@ const NewShipment: React.FC = () => {
       checkNo: "",
       commodity: "",
 
-      mode: "ROAD",
+      // Receiving-specific
+      paymentTerm: "COLLECT",
+      packageCondition: "GOOD",
+      holdReason: "",
+      documents: [],
+      customerBoxId: "",
+
+      mode: "GROUND",
       originCountry: "India",
       originHub: "HYD-001",
       destCountry: "",
       destHub: "",
 
-      items: [{ id: crypto.randomUUID(), length: 100, width: 100, height: 120, dimUnit: "CM", pkg: 1, pcs: 200, unit: "CARTON(S)", actWeightKg: 0 }],
+      items: [
+        {
+          id: crypto.randomUUID(),
+          packageId: undefined,
+          qrCode: undefined,
+          length: 100,
+          width: 100,
+          height: 120,
+          dimUnit: "CM",
+          pkg: 1,
+          pcs: 200,
+          unit: "CARTON(S)",
+          actWeightKg: 0,
+          description: "",
+          declaredValue: "",
+          storageShelf: "",
+        },
+      ],
 
       emailNotify: true,
-    };
+    } as FormState;
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
-
-  // Modals (shipper/consignee)
   const [openNewShipper, setOpenNewShipper] = useState(false);
   const [openNewConsignee, setOpenNewConsignee] = useState(false);
+  const [openConfirm, setOpenConfirm] = useState(false);
 
   // flatten hubs (all hubs) for header Location select
   const allHubs = useMemo(() => {
@@ -257,25 +386,41 @@ const NewShipment: React.FC = () => {
     return list;
   }, []);
 
-  // Select-friendly country options
   const countryOptions = useMemo(() => COUNTRIES.map((c) => ({ value: c, label: c })), []);
-  // hubs for selected origin/dest country
   const originHubOptions = useMemo(() => (HUBS_BY_COUNTRY[state.originCountry] ?? []).map((h) => ({ value: h, label: h })), [state.originCountry]);
   const destHubOptions = useMemo(() => (HUBS_BY_COUNTRY[state.destCountry] ?? []).map((h) => ({ value: h, label: h })), [state.destCountry]);
 
   const setField = <K extends keyof FormState>(k: K, v: FormState[K]) => setState((s) => ({ ...s, [k]: v }));
 
-  /* ---- Items table helpers ---- */
+  /* items helpers */
   const addRow = () =>
     setState((s) => ({
       ...s,
-      items: [...s.items, { id: crypto.randomUUID(), length: "", width: "", height: "", dimUnit: "CM", pkg: "", pcs: "", unit: "CARTON(S)", actWeightKg: "" }],
+      items: [
+        ...s.items,
+        {
+          id: crypto.randomUUID(),
+          packageId: undefined,
+          qrCode: undefined,
+          length: "",
+          width: "",
+          height: "",
+          dimUnit: "CM",
+          pkg: "",
+          pcs: "",
+          unit: "CARTON(S)",
+          actWeightKg: "",
+          description: "",
+          declaredValue: "",
+          storageShelf: "",
+        },
+      ],
     }));
   const updRow = (id: string, patch: Partial<PackageRow>) =>
     setState((s) => ({ ...s, items: s.items.map((r) => (r.id === id ? { ...r, ...patch } : r)) }));
   const delRow = (id: string) => setState((s) => ({ ...s, items: s.items.filter((r) => r.id !== id) }));
 
-  /* ---- totals ---- */
+  /* totals */
   const totals = useMemo(() => {
     let totalPkg = 0, totalPcs = 0, cbm = 0, cft = 0, actKg = 0;
     state.items.forEach((r) => {
@@ -288,7 +433,19 @@ const NewShipment: React.FC = () => {
     return { totalPkg, totalPcs, cbm, cft, actKg, actLbs: kgToLbs(actKg) };
   }, [state.items]);
 
-  /* ---- validate & save ---- */
+  /* files stub */
+  const handleFiles = (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+    const arr: UploadedDoc[] = [];
+    for (let i = 0; i < files.length; i++) {
+      const f = files[i];
+      arr.push({ id: `DOC-${Date.now()}-${i}`, name: f.name, size: f.size });
+    }
+    setField("documents", [...(state.documents ?? []), ...arr] as UploadedDoc[]);
+  };
+  const removeDoc = (id: string) => setField("documents", (state.documents ?? []).filter((d) => d.id !== id));
+
+  /* validation (receiving only) */
   const validate = () => {
     const e: Record<string, string> = {};
     if (!state.receivedAt || !String(state.receivedAt).trim()) e.receivedAt = "Required";
@@ -297,40 +454,111 @@ const NewShipment: React.FC = () => {
     if (!state.destCountry || !String(state.destCountry).trim()) e.destCountry = "Required";
     if (!state.destHub || !String(state.destHub).trim()) e.destHub = "Required";
     if (!state.items || state.items.length === 0) e.items = "Add at least one row";
+
+    if (!state.paymentTerm) e.paymentTerm = "Select payment term";
+    if (!state.packageCondition) e.packageCondition = "Select package condition";
+
+    const missingDesc = state.items.some((it) => !it.description || !String(it.description).trim());
+    if (missingDesc) e.items = "Each package must include a description of contents";
+
+    if (state.packageCondition !== "GOOD" && (!state.holdReason || !String(state.holdReason).trim())) {
+      e.holdReason = "Provide reason for holding/damage";
+    }
+
     setErrors(e);
     return Object.keys(e).length === 0;
   };
 
-  const handleSave = async () => {
+  /* === confirm/print flow === */
+  const handlePreview = () => {
     if (!validate()) return;
+    setOpenConfirm(true);
+  };
+
+  const doConfirmAndPrint = async () => {
     setSaving(true);
     try {
-      // TODO: POST to PHP API — for now just delay and navigate (or keep on page)
-      await new Promise((r) => setTimeout(r, 700));
-      // console for payload (use this payload to send)
-      const payload = { ...state };
-      console.log("NEW_WAREHOUSE_RECEIPT_PAYLOAD", payload);
+      // Build payload for server
+      const payload = {
+        wrNo: state.wrNo,
+        receivedAt: state.receivedAt,
+        location: state.location,
+        shipper: state.shipper,
+        consignee: state.consignee,
+        paymentTerm: state.paymentTerm,
+        packageCondition: state.packageCondition,
+        holdReason: state.holdReason,
+        customerBoxId: state.customerBoxId,
+        documents: state.documents,
+        receivedByUserId: state.receivedByUserId,
+        office: state.office,
+        remark: state.remark,
+        poNo: state.poNo,
+        cargoType: state.cargoType,
+        mode: state.mode,
+        originCountry: state.originCountry,
+        originHub: state.originHub,
+        destCountry: state.destCountry,
+        destHub: state.destHub,
+        items: state.items.map((it) => ({
+          length: it.length, width: it.width, height: it.height, dimUnit: it.dimUnit,
+          pkg: it.pkg, pcs: it.pcs, unit: it.unit,
+          actWeightKg: it.actWeightKg, description: it.description,
+          declaredValue: it.declaredValue,
+        })),
+        emailNotify: state.emailNotify,
+      };
+
+      // TODO: replace with actual POST to server: POST /api/warehouse-receipts
+      await new Promise((r) => setTimeout(r, 800));
+
+      // Mock server response: server returns canonical orderId and package ids, printHtml
+      const mockResponse = {
+        orderId: `ORD-${Date.now()}`,
+        packages: state.items.map((it, idx) => ({ packageId: `PKG-${Date.now()}-${idx + 1}`, qr: `QR-${Math.random().toString(36).slice(2, 10)}` })),
+        printHtml: null as string | null,
+      };
+
+      // Generate printable HTML client-side if server didn't provide printHtml / URL
+      const printHtml = mockResponse.printHtml ?? generateReceiptHtml(mockResponse.orderId, payload, mockResponse.packages, totals);
+
+      // Open print window and write
+      const w = window.open("", "_blank");
+      if (w) {
+        w.document.write(printHtml);
+        w.document.close();
+        setTimeout(() => {
+          try { w.print(); } catch (err) { /* ignore */ }
+        }, 500);
+      }
+
+      setOpenConfirm(false);
+      console.log("RECEIVE_RESPONSE", mockResponse);
       navigate("/home");
     } finally {
       setSaving(false);
     }
   };
 
+  /* =========================
+     Render
+  ========================= */
   return (
     <div className="grid grid-cols-12 gap-5 md:gap-6 overflow-x-clip">
       {/* LEFT column */}
       <div className="col-span-12 xl:col-span-8 space-y-6">
         {/* Header form */}
-        <ComponentCard title="Warehouse Receipt">
+        <ComponentCard title="Warehouse Receipt (Receiving)">
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-            <Input value={state.wrNo} onValueChange={(v) => setField("wrNo", v)} label="* Warehouse Receipt No." />
+            <Field label="* Warehouse Receipt No.">
+              <Input value={state.wrNo} onValueChange={(v) => setField("wrNo", v)} />
+            </Field>
 
-            <Input type="datetime-local" label="* Received Date/Time" value={state.receivedAt} onValueChange={(v) => setField("receivedAt", v)} />
-            {errors.receivedAt && <p className="text-xs text-[var(--color-danger)]">{errors.receivedAt}</p>}
+            <Field label="* Received Date/Time" error={errors.receivedAt}>
+              <Input type="datetime-local" value={state.receivedAt} onValueChange={(v) => setField("receivedAt", v)} />
+            </Field>
 
-            {/* Location/HUB (select all hubs) */}
-            <div>
-              <Label>Location/HUB *</Label>
+            <Field label="Location/HUB *" error={errors.location}>
               <Select
                 options={allHubs}
                 value={state.location}
@@ -338,20 +566,50 @@ const NewShipment: React.FC = () => {
                 placeholder="Select Hub"
                 searchable
                 searchPlaceholder="Search hubs..."
-                errorMessage={errors.location}
               />
+            </Field>
+
+            <div>
+              <PartySelect label="Shipper (Customer)" value={state.shipper} onSelect={(p) => setField("shipper", p)} onClear={() => setField("shipper", null)} placeholder="Search shipper" onCreateNew={() => setOpenNewShipper(true)} />
             </div>
 
-            <PartySelect label="Shipper (Customer)" value={state.shipper} onSelect={(p) => setField("shipper", p)} onClear={() => setField("shipper", null)} placeholder="Search shipper" onCreateNew={() => setOpenNewShipper(true)} />
+            <div>
+              <PartySelect label="Consignee (Receiver) *" value={state.consignee} onSelect={(p) => setField("consignee", p)} onClear={() => setField("consignee", null)} placeholder="Search consignee" onCreateNew={() => setOpenNewConsignee(true)} />
+              {errors.consignee && <p className="text-xs text-[var(--color-danger)] mt-1">{errors.consignee}</p>}
+            </div>
 
-            <PartySelect label="Consignee (Receiver) *" value={state.consignee} onSelect={(p) => setField("consignee", p)} onClear={() => setField("consignee", null)} placeholder="Search consignee" onCreateNew={() => setOpenNewConsignee(true)} />
-            {errors.consignee && <p className="text-xs text-[var(--color-danger)]">{errors.consignee}</p>}
+            <Field label="Customer Box ID (if any)">
+              <Input value={state.customerBoxId ?? ""} onValueChange={(v) => setField("customerBoxId", v)} placeholder="TNT-1234" />
+            </Field>
 
-            <Input label="Estimated Price" type="number" value={String(state.amount ?? "")} onValueChange={(v) => setField("amount", v ? Number(v) : "")} placeholder="0" />
-          </div>
+            <Field label="Payment Term *" error={errors.paymentTerm}>
+              <div className="flex gap-2">
+                <button type="button" className={`rounded-lg border px-3 py-1.5 text-sm ${state.paymentTerm === "COLLECT" ? "border-[var(--color-primary)] bg-[var(--color-primary)]/10 text-[var(--color-primary)]" : "border-[var(--color-border)] text-[var(--color-textMuted)]"}`} onClick={() => setField("paymentTerm", "COLLECT")}>Collect</button>
+                <button type="button" className={`rounded-lg border px-3 py-1.5 text-sm ${state.paymentTerm === "PREPAID" ? "border-[var(--color-primary)] bg-[var(--color-primary)]/10 text-[var(--color-primary)]" : "border-[var(--color-border)] text-[var(--color-textMuted)]"}`} onClick={() => setField("paymentTerm", "PREPAID")}>Prepaid</button>
+              </div>
+            </Field>
 
-          <div className="grid mt-4">
-            <Input value={state.remark ?? ""} onValueChange={(v) => setField("remark", v)} label="Any specific remarks / comments about the package" />
+            <Field label="Package Condition *" error={errors.packageCondition}>
+              <div className="flex gap-2">
+                <button type="button" className={`rounded-lg border px-3 py-1.5 text-sm ${state.packageCondition === "GOOD" ? "border-[var(--color-primary)] bg-[var(--color-primary)]/10 text-[var(--color-primary)]" : "border-[var(--color-border)] text-[var(--color-textMuted)]"}`} onClick={() => setField("packageCondition", "GOOD")}>Good</button>
+                <button type="button" className={`rounded-lg border px-3 py-1.5 text-sm ${state.packageCondition === "DAMAGED" ? "border-[var(--color-primary)] bg-[var(--color-primary)]/10 text-[var(--color-primary)]" : "border-[var(--color-border)] text-[var(--color-textMuted)]"}`} onClick={() => setField("packageCondition", "DAMAGED")}>Damaged</button>
+                <button type="button" className={`rounded-lg border px-3 py-1.5 text-sm ${state.packageCondition === "HOLD" ? "border-[var(--color-primary)] bg-[var(--color-primary)]/10 text-[var(--color-primary)]" : "border-[var(--color-border)] text-[var(--color-textMuted)]"}`} onClick={() => setField("packageCondition", "HOLD")}>Hold</button>
+              </div>
+            </Field>
+
+            {state.packageCondition !== "GOOD" && (
+              <Field label="Hold / Damage Reason (required when not 'Good')" className="md:col-span-2 lg:col-span-3" error={errors.holdReason}>
+                <Input value={state.holdReason ?? ""} onValueChange={(v) => setField("holdReason", v)} />
+              </Field>
+            )}
+
+            <Field label="Estimated Price">
+              <Input type="number" value={String(state.amount ?? "")} onValueChange={(v) => setField("amount", v ? Number(v) : "")} placeholder="0" />
+            </Field>
+
+            <Field label="Any specific remarks / comments about the package" className="md:col-span-2 lg:col-span-3">
+              <Input value={state.remark ?? ""} onValueChange={(v) => setField("remark", v)} />
+            </Field>
           </div>
         </ComponentCard>
 
@@ -360,7 +618,7 @@ const NewShipment: React.FC = () => {
           title="Route & Mode"
           right={
             <div className="flex items-center gap-2">
-              {(["AIR", "OCEAN", "ROAD"] as Mode[]).map((m) => (
+              {(["AIR", "OCEAN", "GROUND"] as Mode[]).map((m) => (
                 <button
                   key={m}
                   type="button"
@@ -374,9 +632,7 @@ const NewShipment: React.FC = () => {
           }
         >
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            {/* Origin country + hub */}
-            <div>
-              <Label>Origin Country</Label>
+            <Field label="Origin Country">
               <Select
                 options={countryOptions}
                 value={state.originCountry}
@@ -389,16 +645,13 @@ const NewShipment: React.FC = () => {
                 searchable
                 searchPlaceholder="Search countries..."
               />
-            </div>
+            </Field>
 
-            <div>
-              <Label>Origin Hub</Label>
+            <Field label="Origin Hub">
               <Select options={originHubOptions} value={state.originHub} onChange={(v) => setField("originHub", v)} placeholder="Select origin hub" searchable searchPlaceholder="Search hubs..." />
-            </div>
+            </Field>
 
-            {/* Destination country + hub */}
-            <div>
-              <Label>Destination Country</Label>
+            <Field label="Destination Country" error={errors.destCountry}>
               <Select
                 options={countryOptions}
                 value={state.destCountry}
@@ -410,16 +663,12 @@ const NewShipment: React.FC = () => {
                 placeholder="Select country"
                 searchable
                 searchPlaceholder="Search countries..."
-                errorMessage={errors.destCountry}
               />
-              {errors.destCountry && <p className="text-xs text-[var(--color-danger)]">{errors.destCountry}</p>}
-            </div>
+            </Field>
 
-            <div>
-              <Label>Destination Hub</Label>
-              <Select options={destHubOptions} value={state.destHub} onChange={(v) => setField("destHub", v)} placeholder="Select destination hub" searchable searchPlaceholder="Search hubs..." errorMessage={errors.destHub} />
-              {errors.destHub && <p className="text-xs text-[var(--color-danger)]">{errors.destHub}</p>}
-            </div>
+            <Field label="Destination Hub" error={errors.destHub}>
+              <Select options={destHubOptions} value={state.destHub} onChange={(v) => setField("destHub", v)} placeholder="Select destination hub" searchable searchPlaceholder="Search hubs..." />
+            </Field>
           </div>
         </ComponentCard>
 
@@ -440,6 +689,7 @@ const NewShipment: React.FC = () => {
                   <th className="px-3 py-2">Width</th>
                   <th className="px-3 py-2">Height</th>
                   <th className="px-3 py-2">Dimension</th>
+                  <th className="px-3 py-2">Description</th>
                   <th className="px-3 py-2"></th>
                 </tr>
               </thead>
@@ -461,6 +711,11 @@ const NewShipment: React.FC = () => {
                         <option value="INCH">INCH</option>
                       </select>
                     </td>
+
+                    <td className="px-3 py-2 min-w-36">
+                      <Input value={r.description ?? ""} onValueChange={(v) => updRow(r.id, { description: v })} placeholder="Contents description (required)" />
+                    </td>
+
                     <td className="px-3 py-2 min-w-16">
                       <Button variant="ghost" tone="danger" onClick={() => delRow(r.id)}>
                         <Icon name="trash" className="h-4 w-4" />
@@ -471,7 +726,13 @@ const NewShipment: React.FC = () => {
               </tbody>
             </table>
           </div>
+
+          {/* Items-level error (keeps it placed directly inside the Card) */}
           {errors.items && <p className="mt-2 text-xs text-[var(--color-danger)]">{errors.items}</p>}
+
+          <div className="mt-3 text-sm text-[var(--color-textMuted)]">
+            Totals: Packages {totals.totalPkg} • Pieces {totals.totalPcs} • CBM {totals.cbm.toFixed(3)} • Weight {totals.actKg} kg ({totals.actLbs.toFixed(1)} lbs)
+          </div>
         </ComponentCard>
 
         {/* Action Bar */}
@@ -482,7 +743,7 @@ const NewShipment: React.FC = () => {
           </label>
           <div className="flex items-center gap-3">
             <Button variant="outline" onClick={() => navigate(-1)}>Cancel</Button>
-            <Button loading={saving} onClick={handleSave}>Save</Button>
+            <Button loading={saving} onClick={handlePreview}>Save & Preview</Button>
           </div>
         </div>
       </div>
@@ -496,20 +757,30 @@ const NewShipment: React.FC = () => {
               <div className="font-medium text-[var(--color-text)]">{state.mode}</div>
 
               <div className="text-[var(--color-textMuted)]">Origin</div>
-              <div className="text-[var(--color-text)]">{state.originCountry} {state.originHub ? `• ${state.originHub}` : ""}</div>
+              <div className="font-medium text-[var(--color-text)]">{state.originCountry} {state.originHub ? `• ${state.originHub}` : ""}</div>
 
               <div className="text-[var(--color-textMuted)]">Destination</div>
-              <div className="text-[var(--color-text)]">{state.destCountry || "—"} {state.destHub ? `• ${state.destHub}` : ""}</div>
+              <div className="font-medium text-[var(--color-text)]">{state.destCountry || "—"} {state.destHub ? `• ${state.destHub}` : ""}</div>
 
               <div className="text-[var(--color-textMuted)]">Shipper</div>
-              <div className="text-[var(--color-text)]">{state.shipper?.name ?? "—"}</div>
+              <div className="font-medium text-[var(--color-text)]">{state.shipper?.name ?? "—"}</div>
 
               <div className="text-[var(--color-textMuted)]">Consignee</div>
-              <div className="text-[var(--color-text)]">{state.consignee?.name ?? "—"}</div>
+              <div className="font-medium text-[var(--color-text)]">{state.consignee?.name ?? "—"}</div>
+            </div>
+          </ComponentCard>
+
+          <ComponentCard title="User / Actions">
+            <div className="text-sm">
+              <div><span className="text-[var(--color-textMuted)]">Received by</span> <div className="font-medium">{state.receivedBy} • {state.receivedByUserId}</div></div>
+              <div className="mt-2 text-[var(--color-textMuted)] text-xs">After confirming & printing you will receive an Order ID and package QR codes for scanning and consolidation.</div>
             </div>
           </ComponentCard>
         </div>
       </div>
+
+      {/* Confirm modal */}
+      <ConfirmReceiptModal isOpen={openConfirm} onClose={() => setOpenConfirm(false)} onConfirm={doConfirmAndPrint} formState={state} totals={totals} />
 
       {/* New Shipper modal */}
       <Modal isOpen={openNewShipper} onClose={() => setOpenNewShipper(false)} title="New Shipper" size="lg" dismissible showCloseIcon footer={<ModalPartyFooter onCancel={() => setOpenNewShipper(false)} onSave={(p) => { setField("shipper", p); setOpenNewShipper(false); }} />}>
@@ -573,3 +844,61 @@ const ModalPartyFooter: React.FC<{ onCancel: () => void; onSave: (p: Party) => v
     </>
   );
 };
+
+/* =========================
+   Helper: generate printable HTML
+   (client-side fallback - replace with server print URL)
+========================= */
+function generateReceiptHtml(orderId: string, payload: any, packages: { packageId: string; qr: string }[], totals: any) {
+  const itemsHtml = payload.items.map((it: any, i: number) => `
+    <tr>
+      <td style="padding:6px;border:1px solid #ddd;">${i + 1}</td>
+      <td style="padding:6px;border:1px solid #ddd;">${it.length || '-'} x ${it.width || '-'} x ${it.height || '-'} ${it.dimUnit}</td>
+      <td style="padding:6px;border:1px solid #ddd;">${it.unit} / ${it.pkg || 0}</td>
+      <td style="padding:6px;border:1px solid #ddd;">${it.actWeightKg || 0}</td>
+      <td style="padding:6px;border:1px solid #ddd;">${it.description || '-'}</td>
+    </tr>
+  `).join("");
+
+  const pkgQrHtml = packages.map(p => `<div style="display:inline-block;margin:6px;padding:8px;border:1px solid #ccc;"><div style="font-size:12px;">${p.packageId}</div><div style="font-size:10px;color:#666;">QR:${p.qr}</div></div>`).join("");
+
+  return `
+  <html>
+    <head><title>Receipt ${orderId}</title></head>
+    <body style="font-family:Arial,Helvetica,sans-serif;padding:20px;">
+      <h2>Warehouse Receipt: ${orderId}</h2>
+      <div><strong>WR No:</strong> ${payload.wrNo} • <strong>Received:</strong> ${new Date(payload.receivedAt).toLocaleString()}</div>
+      <div><strong>Location:</strong> ${payload.location}</div>
+      <hr />
+      <h4>Shipper</h4>
+      <div>${payload.shipper?.name ?? '-'}</div>
+      <h4>Consignee</h4>
+      <div>${payload.consignee?.name ?? '-'}</div>
+      <hr />
+      <table style="width:100%;border-collapse:collapse;margin-top:12px;">
+        <thead>
+          <tr>
+            <th style="padding:6px;border:1px solid #ddd;text-align:left">#</th>
+            <th style="padding:6px;border:1px solid #ddd;text-align:left">Dimensions</th>
+            <th style="padding:6px;border:1px solid #ddd;text-align:left">Unit</th>
+            <th style="padding:6px;border:1px solid #ddd;text-align:left">Weight (kg)</th>
+            <th style="padding:6px;border:1px solid #ddd;text-align:left">Description</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${itemsHtml}
+        </tbody>
+      </table>
+
+      <div style="margin-top:12px;"><strong>Totals:</strong> Packages ${totals.totalPkg} • Pieces ${totals.totalPcs} • CBM ${totals.cbm.toFixed(3)} • Weight ${totals.actKg} kg</div>
+
+      <div style="margin-top:12px;">
+        <h4>Package QRs</h4>
+        ${pkgQrHtml}
+      </div>
+
+      <div style="margin-top:20px;"><em>Generated by MPJ Logistics</em></div>
+    </body>
+  </html>
+  `;
+}

@@ -1,16 +1,16 @@
-// src/icons/index.ts
+// src/utils/icons.tsx
+import React from "react";
+import type { ComponentType, SVGProps } from "react";
 import { MdSpaceDashboard, MdOutlineEmojiTransportation } from "react-icons/md";
-import { BiLogoMastercard } from "react-icons/bi";
+import { BiLogoMastercard, BiImport, BiSolidFileBlank } from "react-icons/bi";
 import { TbRouteSquare, TbBrandBooking, TbReportSearch } from "react-icons/tb";
 import { PiUsersThreeFill } from "react-icons/pi";
 import { CiSettings } from "react-icons/ci";
 import { IoMdLogOut } from "react-icons/io";
 import { IoIosArrowDown } from "react-icons/io";
 import { FaCar } from "react-icons/fa";
-import type { ComponentType } from "react";
-import { FiEdit2, FiTrash2, FiPlus } from "react-icons/fi";
-import { BiImport,BiSolidFileBlank } from "react-icons/bi";
-
+import { FiEdit2, FiTrash2, FiPlus, FiSearch } from "react-icons/fi";
+import { RiScan2Line } from "react-icons/ri";
 
 export const Icons = {
   dashboard: MdSpaceDashboard,
@@ -26,30 +26,28 @@ export const Icons = {
   caretDown: IoIosArrowDown,
   edit: FiEdit2,
   trash: FiTrash2,
-  import:BiImport,
+  import: BiImport,
   plus: FiPlus,
-  report:BiSolidFileBlank,
+  report: BiSolidFileBlank,
+  search: FiSearch,
+  scan: RiScan2Line,
 } as const;
 
 export type IconName = keyof typeof Icons;
-export type IconComponent = ComponentType<{ className?: string }>;
+type IconComp = ComponentType<{ className?: string } & SVGProps<SVGSVGElement> | any>;
 
-export const Icon = ({ name, className }: { name: IconName; className?: string }) => {
-  const Comp = Icons[name];
-  return <Comp className={className} />;
+/**
+ * Icon wrapper - returns react-icon if available, otherwise fallback svg
+ */
+export const Icon: React.FC<{ name: IconName | string; className?: string; title?: string }> = ({ name, className = "h-5 w-5", title }) => {
+  const key = String(name);
+  const Comp = (Icons as any)[key] as IconComp | undefined;
+  if (Comp) return <Comp className={className} aria-hidden={!title} title={title} />;
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" role="img" aria-hidden={!title} title={title}>
+      <rect x="3" y="3" width="18" height="18" rx="3" stroke="currentColor" strokeWidth="1.5" />
+    </svg>
+  );
 };
 
-// Optional: typed re-exports if you want direct imports
-export {
-  MdSpaceDashboard,
-  BiLogoMastercard,
-  MdOutlineEmojiTransportation,
-  TbRouteSquare,
-  PiUsersThreeFill,
-  TbBrandBooking,
-  TbReportSearch,
-  FaCar,
-  CiSettings,
-  IoMdLogOut,
-  IoIosArrowDown,
-};
+export default Icon;

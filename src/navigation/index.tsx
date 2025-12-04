@@ -9,10 +9,11 @@ import Blank from "../pages/Blank"
 import { ScrollToTop } from "../components/common/ScrollToTop"
 import { Role } from "../constants/common"
 import Countries from "../pages/master/countries/list"
-import NewShipment from "../pages/shipments/newshipment"
 import Vendors from "../pages/master/vendors/list"
 import LocationsList from "../pages/master/locations/list"
 import Hubs from "../pages/master/hubs/list"
+import NewShipment from "../pages/shipments/Newshipment";
+import ScanPackage from "../pages/shipments/ScanPackage"
 
 export default function Navigation() {
   return (
@@ -46,6 +47,7 @@ export default function Navigation() {
           <Route path="/hubs" element={<Hubs />} />
           <Route path="/vendors" element={<Vendors />} />
           <Route path="/newshipment" element={<NewShipment />} />
+          <Route path="/scan" element={<ScanPackage />} />
         </Route>
 
         <Route path="/blank" element={<Blank />} />

@@ -34,21 +34,24 @@ const isVisibleForRole = (v: Visibility | undefined, role: RoleId | null): boole
 
 export const NAV_ITEMS: NavItem[] = [
   { icon: "dashboard", name: "Dashboard", path: "/home" },
+  {
+    icon: "customers",
+    name: "Super Admin",
+    subItems: [
+      { name: "Countries",  path: "/countries",  icon: "routes",   hiddenFor: [2,3] },
+      { name: "Locations",  path: "/locations",  icon: "routes",   hiddenFor: [2,3] },
+      { name: "Hubs",       path: "/hubs",       icon: "routes",   hiddenFor: [2,3] },
+      { name: "Vendors",    path: "/Vendors",    icon: "customers", visibleFor: [1] },
+    ],
+  },
 
   {
     icon: "master",
     name: "Master",
     subItems: [
-      // Hide for Associates; Vendors can see
-      { name: "Countries",  path: "/countries",  icon: "routes",   hiddenFor: [2,3] },
-      { name: "Locations",  path: "/locations",  icon: "routes",   hiddenFor: [2,3] },
-      { name: "Hubs",       path: "/hubs",       icon: "routes",   hiddenFor: [2,3] },
-      // Vendors & Associates should not see Vendors mgmt (Admin only)
-      { name: "Vendors",    path: "/Vendors",    icon: "customers", visibleFor: [1] },
-      // Associates should not see Associates mgmt (Admin/Vendor only)
       { name: "Associates", path: "/associates", icon: "drivers",   hiddenFor: [3] },
-      { name: "Containers", path: "/containers", icon: "vehicle", hiddenFor: [1] },
-      { name: "Shelfs",     path: "/shelfs",     icon: "master", hiddenFor: [1] },
+      { name: "Containers", path: "/containers", icon: "vehicle", hiddenFor: [3] },
+      { name: "Shelfs",     path: "/shelfs",     icon: "master", hiddenFor: [3] },
     ],
   },
 
@@ -57,7 +60,8 @@ export const NAV_ITEMS: NavItem[] = [
     name: "Shipment",
     subItems: [
       { name: "New Shipment",   path: "/newshipment",   icon: "plus" },
-      { name: "Track Shipment", path: "/trackshipment", icon: "bookings" },
+      { name: "Scan Package", path: "/scan", icon: "bookings" },
+      
     ],
   },
   { icon: "customers", name: "Customers",  path: "/customers" },
