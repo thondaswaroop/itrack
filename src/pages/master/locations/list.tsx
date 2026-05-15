@@ -1,160 +1,177 @@
-import React, { useState } from "react";
-import { Button, Icon, Modal } from "../../../components";
-import { useModal } from "../../../hooks/useModal";
-import LocationsManage, { type LocationItem } from "./manage";
-import { locationsMockData } from "../../../mockData"; // your locations mock
-import { countriesMockData } from "../../../mockData"; // your countries mock
+import React, { useState, useEffect } from "react";
+import { Button, Icon, Modal, Input, Select } from "../../../components";
+import { masterService, type Location, type Country } from "../../../services";
+import type { Option } from "../../../components/form/Select";
 
 const LocationsList: React.FC = () => {
-  // note: using local state (replace with API fetch/save later)
-  const [locations, setLocations] = useState<LocationItem[]>(
-    locationsMockData
-  );
-
-  // manage modal
-  const [manageOpen, setManageOpen] = useState(false);
-  const [editing, setEditing] = useState<LocationItem | null>(null);
-
-  // delete confirm
-  const confirm = useModal(false);
-  const [toDeleteId, setToDeleteId] = useState<string | null>(null);
-
-  const openAdd = () => {
-    setEditing(null);
-    setManageOpen(true);
-  };
-  const openEdit = (row: LocationItem) => {
-    setEditing(row);
-    setManageOpen(true);
-  };
-
-  const saveLocation = (loc: LocationItem) => {
-    if (editing) {
-      setLocations((prev) => prev.map((p) => (p.id === loc.id ? loc : p)));
-    } else {
-      setLocations((prev) => [loc, ...prev]);
+  const [locations, setLocations] = useState<Location[]>([]);
+  const [countries, setCountries] = useState<Country[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [form, setForm] = useState({
+    location_code: '',
+    location_name: '',
+    country_id: 0,
+    address: '',
+    city: '',
+    state: '',
+    postal_code: '',
+  });
+  
+  useEffect(() => {
+    loadData();
+  }, []);
+  
+  const loadData = async () => {
+    setLoading(true);
+    try {
+      const [locData, countryData] = await Promise.all([
+        masterService.getLocations('all'),
+        masterService.getCountries('active'),
+      ]);
+      setLocations(locData);
+      setCountries(countryData);
+    } finally {
+      setLoading(false);
     }
-    setManageOpen(false);
-    setEditing(null);
   };
 
-  const askDelete = (id: string) => {
-    setToDeleteId(id);
-    confirm.openModal();
+  const openAddModal = () => {
+    setForm({
+      location_code: '',
+      location_name: '',
+      country_id: 0,
+      address: '',
+      city: '',
+      state: '',
+      postal_code: '',
+    });
+    setIsModalOpen(true);
   };
 
-  const doDelete = () => {
-    if (toDeleteId) setLocations((prev) => prev.filter((m) => m.id !== toDeleteId));
-    confirm.closeModal();
-    setToDeleteId(null);
+  const handleSave = async () => {
+    if (!form.location_code || !form.location_name) {
+      alert('Location code and name are required');
+      return;
+    }
+    if (!form.country_id || form.country_id === 0) {
+      alert('Please select a country');
+      return;
+    }
+    setSaving(true);
+    try {
+      await masterService.createLocation(form);
+      await loadData();
+      setIsModalOpen(false);
+    } catch (err: any) {
+      alert(err.message || 'Failed to save location');
+    } finally {
+      setSaving(false);
+    }
   };
-
-  const getCountryLabel = (countryId?: number | string) => {
-    if (countryId === undefined || countryId === null) return "—";
-    const found = countriesMockData.find((c) => String(c.id) === String(countryId));
-    return found?.title ?? "—";
-  };
-
+  
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-semibold text-[var(--color-text)]">Locations</h1>
-          <p className="text-sm text-[var(--color-textMuted)]">Manage Locations in a country.</p>
+          <p className="text-sm text-[var(--color-textMuted)]">Manage delivery locations.</p>
         </div>
-
-        <Button
-          variant="solid"
-          tone="primary"
-          size="md"
-          leadingIcon={<Icon name="plus" className="h-4 w-4" />}
-          onClick={openAdd}
-        >
+        <Button variant="solid" tone="primary" leadingIcon={<Icon name="plus" className="h-4 w-4" />} onClick={openAddModal}>
           Add Location
         </Button>
       </div>
 
-      {/* Table */}
       <div className="overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]">
-        <table className="min-w-full divide-y divide-[var(--color-border)]">
-          <thead className="bg-[var(--color-surfaceMuted)] text-[var(--color-textMuted)]">
-            <tr>
-              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider">Title</th>
-              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider">Country</th>
-              <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider">Actions</th>
-            </tr>
-          </thead>
-
-          <tbody className="divide-y divide-[var(--color-border)] bg-[var(--color-surface)]">
-            {locations.map((m) => (
-              <tr key={m.id} className="hover:bg-[var(--color-surfaceMuted)]">
-                <td className="px-4 py-3 text-sm text-[var(--color-text)]">{m.title}</td>
-                <td className="px-4 py-3 text-sm text-[var(--color-text)]">{getCountryLabel(m.country)}</td>
-                <td className="px-4 py-3 text-right">
-                  <div className="flex items-center justify-end gap-2">
-                    <Button
-                      variant="ghost"
-                      tone="primary"
-                      size="sm"
-                      aria-label="Edit"
-                      onClick={() => openEdit(m)}
-                      leadingIcon={<Icon name="edit" className="h-4 w-4" />}
-                    >
-                      Edit
-                    </Button>
-                    <Button
-                      variant="outline"
-                      tone="danger"
-                      size="sm"
-                      aria-label="Delete"
-                      onClick={() => askDelete(m.id)}
-                      leadingIcon={<Icon name="trash" className="h-4 w-4" />}
-                    >
-                      Delete
-                    </Button>
-                  </div>
-                </td>
-              </tr>
-            ))}
-
-            {locations.length === 0 && (
+        {loading ? (
+          <div className="p-8 text-center">Loading...</div>
+        ) : locations.length === 0 ? (
+          <div className="p-8 text-center">No locations found.</div>
+        ) : (
+          <table className="min-w-full divide-y divide-[var(--color-border)]">
+            <thead className="bg-[var(--color-surfaceMuted)]">
               <tr>
-                <td colSpan={4} className="px-4 py-8 text-center text-sm text-[var(--color-textMuted)]">
-                  No locations yet. Click <strong>Add Location</strong> to create one.
-                </td>
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase">Code</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase">Name</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase">City</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase">Country</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase">Status</th>
               </tr>
-            )}
-          </tbody>
-        </table>
+            </thead>
+            <tbody className="divide-y divide-[var(--color-border)]">
+              {locations.map((loc) => (
+                <tr key={loc.id} className="hover:bg-[var(--color-surfaceMuted)]">
+                  <td className="px-4 py-3 text-sm font-mono">{loc.location_code}</td>
+                  <td className="px-4 py-3 text-sm font-medium">{loc.location_name}</td>
+                  <td className="px-4 py-3 text-sm">{loc.city || '—'}</td>
+                  <td className="px-4 py-3 text-sm">{loc.country_name || '—'}</td>
+                  <td className="px-4 py-3 text-sm">
+                    <span className={`px-2 py-1 rounded text-xs ${loc.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-gray-100'}`}>
+                      {loc.status}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
       </div>
 
-      {/* Manage modal */}
-      <LocationsManage
-        isOpen={manageOpen}
-        initialData={editing ?? undefined}
-        onClose={() => { setManageOpen(false); setEditing(null); }}
-        onSave={saveLocation}
-      />
-
-      {/* Delete Confirmation */}
-      <Modal
-        isOpen={confirm.isOpen}
-        onClose={confirm.closeModal}
-        title="Delete Location"
-        size="sm"
-        dismissible
-        showCloseIcon
-        footer={
-          <>
-            <Button variant="outline" tone="neutral" onClick={confirm.closeModal}>Cancel</Button>
-            <Button variant="solid" tone="danger" onClick={doDelete}>Delete</Button>
-          </>
-        }
-      >
-        <p className="text-sm text-[var(--color-textMuted)]">
-          Are you sure you want to delete this location? This action cannot be undone.
-        </p>
+      {/* Add Location Modal */}
+      <Modal isOpen={isModalOpen} onClose={() => !saving && setIsModalOpen(false)} title="Add Location" size="lg">
+        <div className="space-y-4 p-6">
+          <div className="grid grid-cols-2 gap-4">
+            <Input
+              label="Location Code *"
+              value={form.location_code}
+              onValueChange={(v) => setForm(f => ({ ...f, location_code: v }))}
+              placeholder="LOC001"
+            />
+            <Input
+              label="Location Name *"
+              value={form.location_name}
+              onValueChange={(v) => setForm(f => ({ ...f, location_name: v }))}
+              placeholder="Downtown Warehouse"
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <Select
+              label="Country *"
+              placeholder={`Select Country (${countries.length} available)`}
+              searchable={true}
+              searchPlaceholder="Search countries..."
+              value={form.country_id ? String(form.country_id) : ""}
+              onChange={(val) => {
+                const selectedId = Number(val);
+                console.log('Country selected:', selectedId);
+                setForm(f => ({ ...f, country_id: selectedId }));
+              }}
+              options={[
+                { value: "0", label: `Select Country (${countries.length} available)`, disabled: true },
+                ...countries.map(c => ({
+                  value: String(c.id),
+                  label: `${c.country_name} (${c.country_code})`
+                }))
+              ]}
+              errorMessage={countries.length === 0 ? "No countries available. Please add countries first." : undefined}
+            />
+            <Input label="City" value={form.city} onValueChange={(v) => setForm(f => ({ ...f, city: v }))} />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <Input label="State" value={form.state} onValueChange={(v) => setForm(f => ({ ...f, state: v }))} />
+            <Input label="Postal Code" value={form.postal_code} onValueChange={(v) => setForm(f => ({ ...f, postal_code: v }))} />
+          </div>
+          <Input label="Address" value={form.address} onValueChange={(v) => setForm(f => ({ ...f, address: v }))} />
+        </div>
+        <div className="flex justify-end gap-3 px-6 py-4 border-t border-[var(--color-border)]">
+          <Button variant="outline" tone="neutral" onClick={() => setIsModalOpen(false)} disabled={saving}>
+            Cancel
+          </Button>
+          <Button variant="solid" tone="primary" onClick={handleSave} disabled={saving}>
+            {saving ? 'Creating...' : 'Create Location'}
+          </Button>
+        </div>
       </Modal>
     </div>
   );

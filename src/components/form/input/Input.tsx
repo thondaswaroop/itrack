@@ -99,6 +99,7 @@ const Input: FC<InputProps> = ({
           className={inputClasses}
           aria-invalid={hasError ? "true" : "false"}
           aria-describedby={hasError ? `${inputId}-error` : undefined}
+          autoComplete="off"
         />
 
         {/* password toggle (handled INSIDE when type="password") */}

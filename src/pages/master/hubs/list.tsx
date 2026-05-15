@@ -1,217 +1,331 @@
-import React, { useMemo, useState } from "react";
-import { Button, Icon, Modal, Select } from "../../../components";
-import { useModal } from "../../../hooks/useModal";
-import ManageHub, { type LocationItem } from "./manage";
-import { locationsMockData, hubsMockData, countriesMockData } from "../../../mockData";
+import React, { useState, useEffect } from "react";
+import { Button, Icon, Modal, Input, Select } from "../../../components";
+import { masterService, type Hub as APIHub, type Location } from "../../../services";
+import type { Option } from "../../../components/form/Select";
 
-/**
- * Hubs page (list + manage modal)
- *
- * - uses local state; replace setX calls with API calls when wiring backend
- */
-
-type Hub = {
-  id: string;
-  title: string;
-  country?: number | string;
-  location?: string; // location id (from locationsMockData)
+type HubForm = {
+  hub_name: string;
+  hub_code: string;
+  location_id: number;
+  address?: string;
+  city?: string;
+  state?: string;
+  postal_code?: string;
+  contact_person?: string;
+  contact_phone?: string;
+  contact_email?: string;
+  hub_type: 'origin' | 'transit' | 'destination' | 'all';
+  status?: 'active' | 'inactive';
 };
 
-const Hubs: React.FC = () => {
-  // local data (replace with API fetch)
-  const [hubs, setHubs] = useState<Hub[]>(hubsMockData as Hub[]);
-  const [manageOpen, setManageOpen] = useState(false);
-  const [editing, setEditing] = useState<LocationItem | null>(null);
-
-  // delete confirmation
-  const confirm = useModal(false);
-  const [toDeleteId, setToDeleteId] = useState<string | null>(null);
-
-  const openAdd = () => {
+const HubsList: React.FC = () => {
+  const [hubs, setHubs] = useState<APIHub[]>([]);
+  const [locations, setLocations] = useState<Location[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  
+  // Modal state
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editing, setEditing] = useState<APIHub | null>(null);
+  const [saving, setSaving] = useState(false);
+  
+  // Form state
+  const [form, setForm] = useState<HubForm>({
+    hub_name: '',
+    hub_code: '',
+    location_id: 0,
+    hub_type: 'all',
+    address: '',
+    city: '',
+    state: '',
+    postal_code: '',
+    contact_person: '',
+    contact_phone: '',
+    contact_email: '',
+  });
+  
+  useEffect(() => {
+    loadData();
+  }, []);
+  
+  const loadData = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const [hubsData, locationsData] = await Promise.all([
+        masterService.getHubs({ status: 'all' }),
+        masterService.getLocations('active'),
+      ]);
+      setHubs(hubsData);
+      setLocations(locationsData);
+    } catch (err: any) {
+      setError(err.message || 'Failed to load data');
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  const openAddModal = () => {
     setEditing(null);
-    setManageOpen(true);
-  };
-
-  const openEdit = (row: Hub) => {
-    // convert Hub -> LocationItem (Manage expects id/title/country)
-    setEditing({ id: row.id, title: row.title, country: row.country ?? "" });
-    setManageOpen(true);
-  };
-
-  const saveHub = (loc: LocationItem & { locationId?: string }) => {
-    // Manage modal returns { id, title, country } and optionally locationId
-    const payload: Hub = {
-      id: loc.id,
-      title: loc.title,
-      country: loc.country,
-      location: (loc as any).locationId ?? undefined,
-    };
-
-    setHubs((prev) => {
-      const exists = prev.some((p) => p.id === payload.id);
-      if (exists) return prev.map((p) => (p.id === payload.id ? payload : p));
-      return [payload, ...prev];
+    setForm({
+      hub_name: '',
+      hub_code: '',
+      location_id: locations[0]?.id || 0,
+      hub_type: 'all',
+      address: '',
+      city: '',
+      state: '',
+      postal_code: '',
+      contact_person: '',
+      contact_phone: '',
+      contact_email: '',
     });
-
-    setManageOpen(false);
-    setEditing(null);
+    setIsModalOpen(true);
   };
-
-  const askDelete = (id: string) => {
-    setToDeleteId(id);
-    confirm.openModal();
+  
+  const openEditModal = (hub: APIHub) => {
+    setEditing(hub);
+    setForm({
+      hub_name: hub.hub_name,
+      hub_code: hub.hub_code,
+      location_id: hub.location_id,
+      address: hub.address || '',
+      city: hub.city || '',
+      state: hub.state || '',
+      postal_code: hub.postal_code || '',
+      contact_person: hub.contact_person || '',
+      contact_phone: hub.contact_phone || '',
+      contact_email: hub.contact_email || '',
+      hub_type: hub.hub_type,
+      status: hub.status,
+    });
+    setIsModalOpen(true);
   };
-
-  const doDelete = () => {
-    if (toDeleteId) setHubs((prev) => prev.filter((m) => m.id !== toDeleteId));
-    confirm.closeModal();
-    setToDeleteId(null);
+  
+  const handleSave = async () => {
+    if (!form.hub_name || !form.hub_code || !form.location_id) {
+      alert('Hub name, code, and location are required');
+      return;
+    }
+    
+    try {
+      setSaving(true);
+      if (editing) {
+        await masterService.updateHub(editing.id, form);
+      } else {
+        await masterService.createHub(form);
+      }
+      await loadData();
+      setIsModalOpen(false);
+    } catch (err: any) {
+      alert(err.message || 'Failed to save hub');
+    } finally {
+      setSaving(false);
+    }
   };
-
-  const getCountryLabel = (countryId?: number | string) => {
-    if (countryId === undefined || countryId === null) return "—";
-    const found = countriesMockData.find((c) => String(c.id) === String(countryId));
-    return found?.title ?? "—";
-  };
-
-  const getLocationLabel = (locationId?: number | string) => {
-    if (locationId === undefined || locationId === null) return "—";
-    const found = locationsMockData.find((c) => String(c.id) === String(locationId));
-    return found?.title ?? "—";
-  };
-
-  // optional: quick filter by country on the page (left as example)
-  const countryOptions = countriesMockData.map((c) => ({ value: String(c.id), label: c.title }));
-  const [filterCountry, setFilterCountry] = useState<string>("");
-
-  const displayedHubs = useMemo(() => {
-    if (!filterCountry) return hubs;
-    return hubs.filter((h) => String(h.country) === filterCountry);
-  }, [hubs, filterCountry]);
-
+  
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-semibold text-[var(--color-text)]">Hubs</h1>
-          <p className="text-sm text-[var(--color-textMuted)]">Manage warehouses / hubs.</p>
+          <p className="text-sm text-[var(--color-textMuted)]">Manage warehouses and distribution hubs.</p>
         </div>
-
-        <div className="flex items-center gap-2">
-          <Select
-            options={[{ value: "", label: "All countries" }, ...countryOptions]}
-            value={filterCountry}
-            onChange={(v) => setFilterCountry(v)}
-            searchable
-            searchPlaceholder="Filter countries..."
-            buttonClassName="w-48"
-          />
-          <Button
-            variant="solid"
-            tone="primary"
-            size="md"
-            leadingIcon={<Icon name="plus" className="h-4 w-4" />}
-            onClick={openAdd}
-          >
-            Add Hub
-          </Button>
-        </div>
+        <Button
+          variant="solid"
+          tone="primary"
+          size="md"
+          leadingIcon={<Icon name="plus" className="h-4 w-4" />}
+          onClick={openAddModal}
+        >
+          Add Hub
+        </Button>
       </div>
 
-      {/* Table */}
       <div className="overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]">
-        <div className="max-w-full overflow-x-auto">
+        {loading ? (
+          <div className="p-8 text-center text-[var(--color-textMuted)]">Loading hubs...</div>
+        ) : error ? (
+          <div className="p-8 text-center">
+            <p className="text-red-600 mb-4">{error}</p>
+            <Button onClick={loadData} variant="outline" tone="primary">Retry</Button>
+          </div>
+        ) : hubs.length === 0 ? (
+          <div className="p-8 text-center text-[var(--color-textMuted)]">No hubs found.</div>
+        ) : (
           <table className="min-w-full divide-y divide-[var(--color-border)]">
-            <thead className="bg-[var(--color-surfaceMuted)] text-[var(--color-textMuted)]">
+            <thead className="bg-[var(--color-surfaceMuted)]">
               <tr>
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider">Hub</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider">Country</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider">Location</th>
-                <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider">Actions</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-[var(--color-textMuted)]">
+                  Hub Code
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-[var(--color-textMuted)]">
+                  Hub Name
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-[var(--color-textMuted)]">
+                  Location
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-[var(--color-textMuted)]">
+                  City
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-[var(--color-textMuted)]">
+                  Type
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-[var(--color-textMuted)]">
+                  Status
+                </th>
+                <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-[var(--color-textMuted)]">
+                  Actions
+                </th>
               </tr>
             </thead>
-
-            <tbody className="divide-y divide-[var(--color-border)] bg-[var(--color-surface)]">
-              {displayedHubs.map((m) => (
-                <tr key={m.id} className="hover:bg-[var(--color-surfaceMuted)]">
-                  <td className="px-4 py-3 text-sm text-[var(--color-text)]">{m.title}</td>
-                  <td className="px-4 py-3 text-sm text-[var(--color-text)]">{getCountryLabel(m.country)}</td>
-                  <td className="px-4 py-3 text-sm text-[var(--color-text)]">{getLocationLabel(m.location)}</td>
+            <tbody className="divide-y divide-[var(--color-border)]">
+              {hubs.map((hub) => (
+                <tr key={hub.id} className="hover:bg-[var(--color-surfaceMuted)]">
+                  <td className="px-4 py-3 text-sm font-mono text-[var(--color-text)]">{hub.hub_code}</td>
+                  <td className="px-4 py-3 text-sm font-medium text-[var(--color-text)]">{hub.hub_name}</td>
+                  <td className="px-4 py-3 text-sm text-[var(--color-text)]">{hub.location_name || '—'}</td>
+                  <td className="px-4 py-3 text-sm text-[var(--color-text)]">{hub.city || '—'}</td>
+                  <td className="px-4 py-3 text-sm text-[var(--color-text)] capitalize">{hub.hub_type}</td>
+                  <td className="px-4 py-3 text-sm">
+                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                      hub.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+                    }`}>
+                      {hub.status}
+                    </span>
+                  </td>
                   <td className="px-4 py-3 text-right">
-                    <div className="flex items-center justify-end gap-2">
-                      <Button
-                        variant="ghost"
-                        tone="primary"
-                        size="sm"
-                        aria-label="Edit"
-                        onClick={() => openEdit(m)}
-                        leadingIcon={<Icon name="edit" className="h-4 w-4" />}
-                      >
-                        Edit
-                      </Button>
-                      <Button
-                        variant="outline"
-                        tone="danger"
-                        size="sm"
-                        aria-label="Delete"
-                        onClick={() => askDelete(m.id)}
-                        leadingIcon={<Icon name="trash" className="h-4 w-4" />}
-                      >
-                        Delete
-                      </Button>
-                    </div>
+                    <Button
+                      variant="ghost"
+                      tone="primary"
+                      size="sm"
+                      onClick={() => openEditModal(hub)}
+                      leadingIcon={<Icon name="edit" className="h-4 w-4" />}
+                    >
+                      Edit
+                    </Button>
                   </td>
                 </tr>
               ))}
-
-              {displayedHubs.length === 0 && (
-                <tr>
-                  <td colSpan={4} className="px-4 py-8 text-center text-sm text-[var(--color-textMuted)]">
-                    No Hubs yet. Click <strong>Add Hub</strong> to create one.
-                  </td>
-                </tr>
-              )}
             </tbody>
           </table>
-        </div>
+        )}
       </div>
 
-      {/* Manage modal */}
-      <ManageHub
-        isOpen={manageOpen}
-        initialData={editing ?? undefined}
-        onClose={() => {
-          setManageOpen(false);
-          setEditing(null);
-        }}
-        onSave={(data) => {
-          // ManageHub returns { id, title, country, locationId? }
-          saveHub(data as any);
-        }}
-      />
-
-      {/* Delete Confirmation */}
       <Modal
-        isOpen={confirm.isOpen}
-        onClose={confirm.closeModal}
-        title="Delete Hub"
-        size="sm"
-        dismissible
-        showCloseIcon
-        footer={
-          <>
-            <Button variant="outline" tone="neutral" onClick={confirm.closeModal}>Cancel</Button>
-            <Button variant="solid" tone="danger" onClick={doDelete}>Delete</Button>
-          </>
-        }
+        isOpen={isModalOpen}
+        onClose={() => !saving && setIsModalOpen(false)}
+        title={editing ? 'Edit Hub' : 'Add Hub'}
+        size="lg"
       >
-        <p className="text-sm text-[var(--color-textMuted)]">
-          Are you sure you want to delete this Hub? This action cannot be undone.
-        </p>
+        <div className="space-y-4 p-6">
+          <div className="grid grid-cols-2 gap-4">
+            <Input
+              label="Hub Code *"
+              value={form.hub_code}
+              onValueChange={(v) => setForm(f => ({ ...f, hub_code: v }))}
+              placeholder="HUB001"
+            />
+            <Input
+              label="Hub Name *"
+              value={form.hub_name}
+              onValueChange={(v) => setForm(f => ({ ...f, hub_name: v }))}
+              placeholder="Main Warehouse"
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <Select
+              label="Location *"
+              placeholder="Select Location"
+              searchable={true}
+              searchPlaceholder="Search locations..."
+              value={form.location_id ? String(form.location_id) : ""}
+              onChange={(val) => setForm(f => ({ ...f, location_id: Number(val) || 0 }))}
+              options={[
+                { value: "0", label: "Select Location", disabled: true },
+                ...locations.map(l => ({
+                  value: String(l.id),
+                  label: l.location_name
+                }))
+              ]}
+            />
+            <Select
+              label="Hub Type"
+              placeholder="Select Hub Type"
+              value={form.hub_type}
+              onChange={(val) => setForm(f => ({ ...f, hub_type: val as any }))}
+              options={[
+                { value: "all", label: "All (Origin + Transit + Destination)" },
+                { value: "origin", label: "Origin Only" },
+                { value: "transit", label: "Transit Only" },
+                { value: "destination", label: "Destination Only" }
+              ]}
+            />
+          </div>
+          <div className="grid grid-cols-3 gap-4">
+            <Input
+              label="City"
+              value={form.city || ''}
+              onValueChange={(v) => setForm(f => ({ ...f, city: v }))}
+            />
+            <Input
+              label="State"
+              value={form.state || ''}
+              onValueChange={(v) => setForm(f => ({ ...f, state: v }))}
+            />
+            <Input
+              label="Postal Code"
+              value={form.postal_code || ''}
+              onValueChange={(v) => setForm(f => ({ ...f, postal_code: v }))}
+            />
+          </div>
+          <Input
+            label="Address"
+            value={form.address || ''}
+            onValueChange={(v) => setForm(f => ({ ...f, address: v }))}
+          />
+          <div className="grid grid-cols-3 gap-4">
+            <Input
+              label="Contact Person"
+              value={form.contact_person || ''}
+              onValueChange={(v) => setForm(f => ({ ...f, contact_person: v }))}
+            />
+            <Input
+              label="Contact Phone"
+              value={form.contact_phone || ''}
+              onValueChange={(v) => setForm(f => ({ ...f, contact_phone: v }))}
+            />
+            <Input
+              label="Contact Email"
+              value={form.contact_email || ''}
+              onValueChange={(v) => setForm(f => ({ ...f, contact_email: v }))}
+            />
+          </div>
+          {editing && (
+            <div>
+              <label className="block text-sm font-medium text-[var(--color-text)] mb-2">Status</label>
+              <select
+                value={form.status}
+                onChange={(e) => setForm(f => ({ ...f, status: e.target.value as 'active' | 'inactive' }))}
+                className="w-full px-3 py-2 border border-[var(--color-border)] rounded-lg bg-[var(--color-surface)] text-[var(--color-text)]"
+              >
+                <option value="active">Active</option>
+                <option value="inactive">Inactive</option>
+              </select>
+            </div>
+          )}
+        </div>
+        <div className="flex justify-end gap-3 px-6 py-4 border-t border-[var(--color-border)]">
+          <Button variant="outline" tone="neutral" onClick={() => setIsModalOpen(false)} disabled={saving}>
+            Cancel
+          </Button>
+          <Button variant="solid" tone="primary" onClick={handleSave} disabled={saving}>
+            {saving ? 'Saving...' : editing ? 'Update' : 'Create'}
+          </Button>
+        </div>
       </Modal>
     </div>
   );
 };
 
-export default Hubs;
+export default HubsList;

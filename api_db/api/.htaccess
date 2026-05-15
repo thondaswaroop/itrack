@@ -1,0 +1,179 @@
+# iTrack API - Apache Configuration
+# Place this file in api_db/api/ directory
+
+# ==================== SECURITY ====================
+
+# Prevent directory listing
+Options -Indexes
+
+# Prevent access to config.php from browser
+<Files "config.php">
+    Order Allow,Deny
+    Deny from all
+</Files>
+
+# Prevent access to .htaccess itself
+<Files ".htaccess">
+    Order Allow,Deny
+    Deny from all
+</Files>
+
+# Prevent access to backup files
+<FilesMatch "\.(bak|config|sql|log|sh|inc)$">
+    Order Allow,Deny
+    Deny from all
+</FilesMatch>
+
+# ==================== CORS CONFIGURATION ====================
+
+<IfModule mod_headers.c>
+    # Allow requests from any origin (adjust in production)
+    Header set Access-Control-Allow-Origin "*"
+    
+    # Allow specific HTTP methods
+    Header set Access-Control-Allow-Methods "GET, POST, PUT, DELETE, OPTIONS"
+    
+    # Allow specific headers
+    Header set Access-Control-Allow-Headers "Content-Type, Authorization, Accept, X-Requested-With"
+    
+    # Cache preflight requests for 1 hour
+    Header set Access-Control-Max-Age "3600"
+    
+    # Allow credentials (if needed)
+    # Header set Access-Control-Allow-Credentials "true"
+</IfModule>
+
+# ==================== HANDLE OPTIONS REQUESTS ====================
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    
+    # Handle preflight OPTIONS requests
+    RewriteCond %{REQUEST_METHOD} OPTIONS
+    RewriteRule ^(.*)$ $1 [R=200,L]
+</IfModule>
+
+# ==================== PHP CONFIGURATION ====================
+
+<IfModule mod_php7.c>
+    # Increase upload limits
+    php_value upload_max_filesize 50M
+    php_value post_max_size 50M
+    php_value max_execution_time 300
+    php_value max_input_time 300
+    php_value memory_limit 256M
+    
+    # Disable display errors in production (enable for debugging)
+    php_flag display_errors Off
+    php_flag display_startup_errors Off
+    
+    # Log errors
+    php_flag log_errors On
+    php_value error_log ../logs/php_errors.log
+    
+    # Set timezone
+    php_value date.timezone "UTC"
+</IfModule>
+
+# ==================== COMPRESSION ====================
+
+<IfModule mod_deflate.c>
+    # Compress text, html, javascript, css, xml
+    AddOutputFilterByType DEFLATE text/plain
+    AddOutputFilterByType DEFLATE text/html
+    AddOutputFilterByType DEFLATE text/xml
+    AddOutputFilterByType DEFLATE text/css
+    AddOutputFilterByType DEFLATE application/xml
+    AddOutputFilterByType DEFLATE application/xhtml+xml
+    AddOutputFilterByType DEFLATE application/rss+xml
+    AddOutputFilterByType DEFLATE application/javascript
+    AddOutputFilterByType DEFLATE application/x-javascript
+    AddOutputFilterByType DEFLATE application/json
+</IfModule>
+
+# ==================== CACHING ====================
+
+<IfModule mod_expires.c>
+    ExpiresActive On
+    
+    # Cache API responses for a short time
+    ExpiresByType application/json "access plus 0 seconds"
+    
+    # Cache static files longer
+    ExpiresByType text/css "access plus 1 month"
+    ExpiresByType application/javascript "access plus 1 month"
+    ExpiresByType image/png "access plus 1 year"
+    ExpiresByType image/jpg "access plus 1 year"
+    ExpiresByType image/jpeg "access plus 1 year"
+</IfModule>
+
+# ==================== SECURITY HEADERS ====================
+
+<IfModule mod_headers.c>
+    # Prevent MIME type sniffing
+    Header set X-Content-Type-Options "nosniff"
+    
+    # XSS Protection
+    Header set X-XSS-Protection "1; mode=block"
+    
+    # Prevent clickjacking
+    Header set X-Frame-Options "SAMEORIGIN"
+    
+    # Referrer Policy
+    Header set Referrer-Policy "strict-origin-when-cross-origin"
+    
+    # Remove X-Powered-By header (PHP version)
+    Header unset X-Powered-By
+</IfModule>
+
+# ==================== FORCE HTTPS (Uncomment after SSL is installed) ====================
+
+# <IfModule mod_rewrite.c>
+#     RewriteEngine On
+#     RewriteCond %{HTTPS} off
+#     RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+# </IfModule>
+
+# ==================== RATE LIMITING (Basic) ====================
+
+# Note: For better rate limiting, use fail2ban or ModSecurity
+# This is just a basic example
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    
+    # Block common attack patterns
+    RewriteCond %{QUERY_STRING} (eval\(|base64_decode|gzip|script|javascript|alert) [NC,OR]
+    RewriteCond %{QUERY_STRING} (boot.ini|etc/passwd|self/environ) [NC,OR]
+    RewriteCond %{QUERY_STRING} (<|%3C).*script.*(>|%3E) [NC,OR]
+    RewriteCond %{QUERY_STRING} (SELECT|INSERT|UPDATE|DELETE|DROP|UNION).*(FROM|WHERE) [NC]
+    RewriteRule ^(.*)$ - [F,L]
+</IfModule>
+
+# ==================== CUSTOM ERROR PAGES ====================
+
+# ErrorDocument 400 /error/400.html
+# ErrorDocument 401 /error/401.html
+# ErrorDocument 403 /error/403.html
+# ErrorDocument 404 /error/404.html
+# ErrorDocument 500 /error/500.html
+
+# ==================== NOTES ====================
+
+# 1. After uploading, verify the file is named ".htaccess" (with the dot)
+# 2. Ensure mod_rewrite, mod_headers, and mod_deflate are enabled
+# 3. Test thoroughly after deployment
+# 4. Uncomment HTTPS redirect after SSL certificate is installed
+# 5. Adjust CORS settings for production (restrict origins)
+# 6. Monitor error logs regularly
+# 7. Keep this file secure - prevent public access
+
+# ==================== PRODUCTION ADJUSTMENTS ====================
+
+# For production, consider:
+# 1. Restricting Access-Control-Allow-Origin to specific domains
+# 2. Enabling HTTPS redirect
+# 3. Implementing rate limiting with fail2ban
+# 4. Adding custom error pages
+# 5. Monitoring and logging all requests
+# 6. Regular security audits

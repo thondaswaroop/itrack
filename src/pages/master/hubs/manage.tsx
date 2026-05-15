@@ -1,75 +1,61 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Button, Input, Modal, Select } from "../../../components";
-import { countriesMockData, locationsMockData } from "../../../mockData";
+import { locationsMockData } from "../../../mockData";
 
 /**
  * ManageHub modal component
+ * Hierarchy: Locations → Hubs
  *
  * Props:
  *  - isOpen
- *  - initialData?: LocationItem
- *  - onSave: (loc) => void
+ *  - initialData?: HubItem
+ *  - onSave: (hub) => void
  *  - onClose
  */
 
-export type LocationItem = {
+export type HubItem = {
   id: string;
   title: string;
-  country?: number | string;
-  // optional locationId to reference an existing location that this hub maps to
-  locationId?: string;
+  locationId: string;
 };
 
 type Props = {
   isOpen: boolean;
-  initialData?: LocationItem;
-  onSave: (l: LocationItem) => void;
+  initialData?: HubItem;
+  onSave: (h: HubItem) => void;
   onClose: () => void;
 };
 
 const ManageHub: React.FC<Props> = ({ isOpen, initialData, onSave, onClose }) => {
   const [title, setTitle] = useState("");
-  const [country, setCountry] = useState<string>("");
   const [locationId, setLocationId] = useState<string>("");
 
-  const [errors, setErrors] = useState<{ title?: string; country?: string; location?: string }>({});
+  const [errors, setErrors] = useState<{ title?: string; location?: string }>({});
 
   useEffect(() => {
     if (isOpen) {
       setTitle(initialData?.title ?? "");
-      setCountry(initialData?.country ? String(initialData.country) : "");
       setLocationId(initialData?.locationId ?? "");
       setErrors({});
     }
   }, [isOpen, initialData]);
 
-  const countryOptions = countriesMockData.map((c) => ({ value: String(c.id), label: c.title }));
-
-  // filter locations by chosen country
-  const locationOpts = useMemo(() => {
-    if (!country) return locationsMockData.map((l) => ({ value: l.id, label: l.title }));
-    return locationsMockData
-      .filter((l) => String(l.country) === String(country))
-      .map((l) => ({ value: l.id, label: l.title }));
-  }, [country]);
+  const locationOpts = locationsMockData.map((l) => ({ value: l.id, label: l.title }));
 
   const validate = () => {
-    const e: { title?: string; country?: string; location?: string } = {};
+    const e: { title?: string; location?: string } = {};
     if (!title.trim()) e.title = "Hub name is required";
-    if (!country) e.country = "Country is required";
-    // location is optional, but if we want to require:
-    // if (!locationId) e.location = "Select a location";
+    if (!locationId) e.location = "Location is required";
     setErrors(e);
     return Object.keys(e).length === 0;
   };
 
   const handleSave = () => {
     if (!validate()) return;
-    const payload: LocationItem = {
+    const payload: HubItem = {
       id: initialData?.id ?? `HUB-${Date.now()}`,
       title: title.trim(),
-      country: country ? (isNaN(Number(country)) ? country : Number(country)) : undefined,
-      locationId: locationId || undefined,
+      locationId: locationId,
     };
     onSave(payload);
   };
@@ -99,24 +85,14 @@ const ManageHub: React.FC<Props> = ({ isOpen, initialData, onSave, onClose }) =>
         />
 
         <Select
-          label="Country *"
-          options={countryOptions}
-          value={country}
-          onChange={(v) => { setCountry(v); setErrors((p) => ({ ...p, country: undefined })); }}
-          placeholder="Select country"
-          searchable
-          searchPlaceholder="Search countries…"
-          errorMessage={errors.country}
-        />
-
-        <Select
-          label="Linked Location (optional)"
+          label="Location *"
           options={locationOpts}
           value={locationId}
-          onChange={(v) => setLocationId(v)}
+          onChange={(v) => { setLocationId(v); setErrors((p) => ({ ...p, location: undefined })); }}
           placeholder="Select location"
           searchable
           searchPlaceholder="Search locations…"
+          errorMessage={errors.location}
         />
       </div>
     </Modal>

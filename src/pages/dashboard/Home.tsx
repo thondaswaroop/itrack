@@ -1,5 +1,5 @@
 // src/pages/dashboard/Home.tsx
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 
 import { Icon } from "../../utils/icons";        // registry icons
@@ -17,24 +17,18 @@ import {
 } from "../../components/ui/table";
 
 import { Modal } from "../../components";
+import { dashboardService, shipmentService, getCurrentUser } from "../../services";
+import { type ShipmentStatus } from "../../constants/shipmentStatus";
 
 /* ---------------------------
    Types
    --------------------------- */
-type ShipmentStatus =
-  | "RECEIVED"
-  | "CONSOLIDATED"
-  | "DISPATCHED"
-  | "IN_TRANSIT"
-  | "ARRIVED"
-  | "READY_FOR_PICKUP"
-  | "COLLECTED";
 
 type ShipmentRow = {
   id: string;
   from: string;
   to: string;
-  mode: "AIR" | "OCEAN" | "ROAD";
+  mode: "AIR" | "OCEAN" | "GROUND" | "ROAD";
   packages: number;
   eta: string;
   status: ShipmentStatus;
@@ -44,7 +38,7 @@ type PackageResult = {
   id: string;
   from: string;
   to: string;
-  mode: "AIR" | "OCEAN" | "ROAD";
+  mode: "AIR" | "OCEAN" | "ROAD" | "GROUND";
   pieces: number;
   weightKg: number;
   eta: string;
@@ -59,27 +53,27 @@ type PackageResult = {
    Small UI pieces
    --------------------------- */
 const StatusPill = ({ status }: { status: ShipmentStatus }) => {
-  const map: Record<ShipmentStatus, string> = {
-    RECEIVED: "bg-[var(--color-surfaceMuted)] text-[var(--color-textMuted)]",
-    CONSOLIDATED: "bg-[var(--color-surfaceMuted)] text-[var(--color-textMuted)]",
-    DISPATCHED: "bg-[var(--color-primary)]/15 text-[var(--color-primary)]",
-    IN_TRANSIT: "bg-[var(--color-warning)]/15 text-[var(--color-warning)]",
-    ARRIVED: "bg-[var(--color-success)]/15 text-[var(--color-success)]",
-    READY_FOR_PICKUP: "bg-[var(--color-primary)]/15 text-[var(--color-primary)]",
-    COLLECTED: "bg-[var(--color-success)]/15 text-[var(--color-success)]",
+  const map: Record<string, string> = {
+    RECEIVED: "bg-gray-100 text-gray-700",
+    CONSOLIDATED: "bg-blue-100 text-blue-700",
+    DISPATCHED: "bg-purple-100 text-purple-700",
+    SHIPPED: "bg-purple-100 text-purple-700",
+    IN_TRANSIT: "bg-orange-100 text-orange-700",
+    ARRIVED: "bg-green-100 text-green-700",
+    READY_FOR_PICKUP: "bg-green-100 text-green-700",
+    COLLECTED: "bg-green-100 text-green-700",
+    DELIVERED: "bg-green-100 text-green-700",
   };
-  return <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${map[status]}`}>{status.replaceAll("_", " ")}</span>;
+  return <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${map[status] || 'bg-gray-100 text-gray-700'}`}>{status.replaceAll("_", " ")}</span>;
 };
 
 const PackageStepper: React.FC<{ current: ShipmentStatus }> = ({ current }) => {
-  const steps: ShipmentStatus[] = [
+  const steps: string[] = [
     "RECEIVED",
     "CONSOLIDATED",
     "DISPATCHED",
     "IN_TRANSIT",
-    "ARRIVED",
-    "READY_FOR_PICKUP",
-    "COLLECTED",
+    "DELIVERED",
   ];
   const idx = Math.max(0, steps.indexOf(current));
   const progressPct = (idx / (steps.length - 1)) * 100;
@@ -144,37 +138,67 @@ const ActivityTimeline = ({ history }: { history: any[] }) => (
 /* ---------------------------
    Shipments table component
    --------------------------- */
-const ShipmentsTable: React.FC<{ rows: ShipmentRow[] }> = ({ rows }) => (
+const ShipmentsTable: React.FC<{ rows: ShipmentRow[]; loading: boolean; onRefresh: () => void; onViewDetails: (id: string) => void }> = ({ rows, loading, onRefresh, onViewDetails }) => (
   <section className="overflow-hidden rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] px-4 pb-3 pt-4 sm:px-6">
     <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-      <h3 className="text-lg font-semibold text-[var(--color-text)]">Current Shipments</h3>
+      <h3 className="text-lg font-semibold text-[var(--color-text)]">Recent Shipments</h3>
+      <Button size="sm" variant="outline" onClick={onRefresh} disabled={loading}>
+        <UIIcon name="refresh" className="h-4 w-4 mr-1" /> Refresh
+      </Button>
     </div>
-    <div className="overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]">
-      <div className="max-w-full overflow-x-auto">
-        <Table>
-          <TableHeader className="border-b border-[var(--color-border)]">
-            <TableRow>
-              {["Shipment ID", "From", "To", "Mode", "Packages", "ETA", "Status"].map((h) => (
-                <TableCell key={h} isHeader className="px-5 py-3 text-start text-theme-xs font-medium text-[var(--color-textMuted)]">{h}</TableCell>
-              ))}
-            </TableRow>
-          </TableHeader>
-          <TableBody className="divide-y divide-[var(--color-border)]">
-            {rows.map((s) => (
-              <TableRow key={s.id}>
-                <TableCell className="px-4 py-3 text-theme-sm text-[var(--color-textMuted)]">{s.id}</TableCell>
-                <TableCell className="px-4 py-3 text-theme-sm text-[var(--color-textMuted)]">{s.from}</TableCell>
-                <TableCell className="px-4 py-3 text-theme-sm text-[var(--color-textMuted)]">{s.to}</TableCell>
-                <TableCell className="px-4 py-3 text-theme-sm text-[var(--color-textMuted)]">{s.mode}</TableCell>
-                <TableCell className="px-4 py-3 text-theme-sm text-[var(--color-textMuted)]">{s.packages}</TableCell>
-                <TableCell className="px-4 py-3 text-theme-sm text-[var(--color-textMuted)]">{s.eta}</TableCell>
-                <TableCell className="px-4 py-3 text-theme-sm"><StatusPill status={s.status} /></TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+    {loading ? (
+      <div className="space-y-3">
+        {Array.from({ length: 5 }).map((_, i) => (
+          <div key={i} className="h-16 animate-pulse rounded-xl bg-[var(--color-surfaceMuted)]" />
+        ))}
       </div>
-    </div>
+    ) : rows.length === 0 ? (
+      <div className="py-12 text-center">
+        <div className="mx-auto h-16 w-16 rounded-full bg-[var(--color-surfaceMuted)] flex items-center justify-center mb-4">
+          <Icon name="vehicle" className="h-8 w-8 text-[var(--color-textMuted)]" />
+        </div>
+        <p className="text-[var(--color-textMuted)] mb-4">No shipments found</p>
+        <Button onClick={() => window.location.href = '/newshipment'}>Create New Shipment</Button>
+      </div>
+    ) : (
+      <div className="overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]">
+        <div className="max-w-full overflow-x-auto">
+          <Table>
+            <TableHeader className="border-b border-[var(--color-border)]">
+              <TableRow>
+                {["Shipment ID", "From", "To", "Mode", "Packages", "ETA", "Status", "Actions"].map((h) => (
+                  <TableCell key={h} isHeader className="px-5 py-3 text-start text-theme-xs font-medium text-[var(--color-textMuted)]">{h}</TableCell>
+                ))}
+              </TableRow>
+            </TableHeader>
+            <TableBody className="divide-y divide-[var(--color-border)]">
+              {rows.map((s) => (
+                <TableRow key={s.id} className="hover:bg-[var(--color-surfaceMuted)]/30 transition">
+                  <TableCell className="px-4 py-3 text-theme-sm text-[var(--color-text)] font-medium">{s.id}</TableCell>
+                  <TableCell className="px-4 py-3 text-theme-sm text-[var(--color-textMuted)]">{s.from}</TableCell>
+                  <TableCell className="px-4 py-3 text-theme-sm text-[var(--color-textMuted)]">{s.to}</TableCell>
+                  <TableCell className="px-4 py-3 text-theme-sm text-[var(--color-textMuted)]">{s.mode}</TableCell>
+                  <TableCell className="px-4 py-3 text-theme-sm text-[var(--color-textMuted)]">{s.packages}</TableCell>
+                  <TableCell className="px-4 py-3 text-theme-sm text-[var(--color-textMuted)]">{s.eta}</TableCell>
+                  <TableCell className="px-4 py-3 text-theme-sm"><StatusPill status={s.status} /></TableCell>
+                  <TableCell className="px-4 py-3 text-theme-sm">
+                    <button 
+                      onClick={() => onViewDetails(s.id)}
+                      className="text-blue-600 hover:text-blue-800 font-medium text-xs flex items-center gap-1"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+                      </svg>
+                      View/Print
+                    </button>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      </div>
+    )}
   </section>
 );
 
@@ -184,77 +208,197 @@ const ShipmentsTable: React.FC<{ rows: ShipmentRow[] }> = ({ rows }) => (
 const Home: React.FC = () => {
   const navigate = useNavigate();
 
-  const kpis = useMemo(() => [
-    { key: "customers", label: "Customers", value: "3,782" },
-    { key: "vehicle", label: "Active Shipments", value: "128" },
-    { key: "routes", label: "Hubs", value: "50" },
-    { key: "master", label: "Vendors", value: "24" },
-    { key: "drivers", label: "Associates", value: "312" },
-    { key: "bookings", label: "Packages Today", value: "642" },
-  ], []);
+  // Check authentication
+  useEffect(() => {
+    const user = getCurrentUser();
+    if (!user) {
+      navigate('/auth/signin', { replace: true });
+      return;
+    }
+  }, [navigate]);
+
+  // State
+  const [stats, setStats] = useState({ total_shipments: 0, today_shipments: 0, by_status: [] as any[] });
+  const [recentShipments, setRecentShipments] = useState<ShipmentRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
+
+  // Load dashboard data
+  useEffect(() => {
+    loadDashboardData();
+    // Auto-refresh every 30 seconds
+    const interval = setInterval(() => {
+      loadDashboardData(true);
+    }, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const loadDashboardData = async (silent = false) => {
+    try {
+      if (!silent) setLoading(true);
+      setRefreshing(true);
+      setError(null);
+      
+      const [statsData, shipmentsData] = await Promise.all([
+        dashboardService.getStats(),
+        shipmentService.getRecentShipments(undefined, 10)
+      ]);
+
+      setStats(statsData);
+      
+      // Transform shipments for table
+      const transformed: ShipmentRow[] = shipmentsData.map(s => ({
+        id: s.tracking_number,
+        from: (s as any).origin_hub || s.shipper_city || 'N/A',
+        to: (s as any).destination_hub || s.consignee_city || 'N/A',
+        mode: s.transport_mode as any,
+        packages: 1, // TODO: count packages from API
+        eta: s.expected_delivery_date || 'TBD',
+        status: s.current_status as ShipmentStatus
+      }));
+      
+      setRecentShipments(transformed);
+    } catch (err: any) {
+      console.error('Failed to load dashboard:', err);
+      setError(err.message || 'Failed to load dashboard data');
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
+
+  const kpis = useMemo(() => {
+    const statusMap = stats.by_status.reduce((acc: any, item: any) => {
+      acc[item.current_status] = item.count;
+      return acc;
+    }, {});
+
+    return [
+      { key: "customers", label: "Total Shipments", value: stats.total_shipments.toString() },
+      { key: "vehicle", label: "Active Shipments", value: (statusMap['IN_TRANSIT'] || 0).toString() },
+      { key: "routes", label: "Today", value: stats.today_shipments.toString() },
+      { key: "master", label: "Received", value: (statusMap['RECEIVED'] || 0).toString() },
+      { key: "drivers", label: "Consolidated", value: (statusMap['CONSOLIDATED'] || 0).toString() },
+      { key: "bookings", label: "Delivered", value: (statusMap['DELIVERED'] || 0).toString() },
+    ];
+  }, [stats]);
 
   const quickActions = [
     { label: "New Receipt", icon: "plus", link: "/newshipment" },
-    { label: "Pending Assignments", icon: "routes", link: "/warehouse/pending" },
-    { label: "Create Container", icon: "vehicle", link: "/containers/new" },
     { label: "Scan Package", icon: "scan", link: "/scan" },
-    { label: "Print Center", icon: "report", link: "/print-center" },
-    { label: "New Customer", icon: "customers", link: "/customers/new" },
+    { label: "Countries", icon: "routes", link: "/master/countries" },
+    { label: "Hubs", icon: "vehicle", link: "/master/hubs" },
+    { label: "Vendors", icon: "master", link: "/master/vendors" },
+    { label: "Locations", icon: "customers", link: "/master/locations" },
   ];
 
   // check-package modal state
   const [trackId, setTrackId] = useState("");
   const [result, setResult] = useState<PackageResult | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [searchLoading, setSearchLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [showModal, setShowModal] = useState(false);
 
-  async function fetchStatus(id: string): Promise<PackageResult> {
-    await new Promise((r) => setTimeout(r, 550));
-    return {
-      id,
-      from: "Hyderabad",
-      to: "Chennai",
-      mode: "ROAD",
-      pieces: 3,
-      weightKg: 12,
-      eta: "Today 6:30 PM",
-      status: "IN_TRANSIT",
-      container: "CONT-129",
-      shelf: "Aisle B • Shelf 3",
-      lastScanAt: "2025-10-22 15:42",
-      history: [
-        { at: "2025-10-22 15:42", note: "Loaded into container", hub: "HYD-001" },
-        { at: "2025-10-22 10:21", note: "Warehouse receipt generated" },
-      ]
-    };
-  }
+  const viewShipmentDetails = async (trackingNumber: string) => {
+    try {
+      const data = await shipmentService.trackByTrackingNumber(trackingNumber);
+      const shipment = data.shipment;
+      const packages = data.packages || [];
+      
+      // Navigate to receipt page with shipment data
+      navigate('/receipt', {
+        state: {
+          wrNumber: shipment.wr_number,
+          trackingNumber: shipment.tracking_number,
+          receivedDate: shipment.received_date || shipment.created_at || new Date().toLocaleDateString(),
+          originHub: shipment.origin_hub_name || 'N/A',
+          destinationHub: shipment.destination_hub_name || 'N/A',
+          shipperName: shipment.shipper_name || 'N/A',
+          shipperPhone: shipment.shipper_phone || 'N/A',
+          shipperAddress: shipment.shipper_address,
+          consigneeName: shipment.consignee_name || 'N/A',
+          consigneePhone: shipment.consignee_phone || 'N/A',
+          consigneeAddress: shipment.consignee_address,
+          packages: packages.map((pkg: any) => ({
+            weight: pkg.weight || 0,
+            length: pkg.length,
+            width: pkg.width,
+            height: pkg.height,
+            description: pkg.description || 'Package',
+            declared_value: pkg.declared_value,
+            quantity: pkg.quantity || 1,
+          })),
+          transportMode: shipment.transport_mode || 'N/A',
+          paymentType: shipment.payment_type || 'N/A',
+          totalAmount: shipment.total_amount,
+          paidAmount: shipment.paid_amount,
+          pendingAmount: shipment.pending_amount,
+          currency: shipment.currency || 'USD',
+          notes: shipment.notes,
+          status: shipment.current_status,
+        }
+      });
+    } catch (err: any) {
+      alert('Failed to load shipment details: ' + err.message);
+    }
+  };
 
   const searchPackage = async () => {
     if (!trackId.trim()) return;
     setShowModal(true);
-    setLoading(true);
+    setSearchLoading(true);
     setErrorMsg(null);
     setResult(null);
+    
     try {
-      const data = await fetchStatus(trackId.trim());
-      setResult(data);
-    } catch (err) {
-      setErrorMsg("Unable to fetch tracking details.");
+      const data = await shipmentService.trackByTrackingNumber(trackId.trim());
+      
+      // Transform API response to PackageResult
+      const transformed: PackageResult = {
+        id: data.shipment.tracking_number,
+        from: data.shipment.origin_hub_name || data.shipment.shipper_city || 'Unknown',
+        to: data.shipment.destination_hub_name || data.shipment.consignee_city || 'Unknown',
+        mode: data.shipment.transport_mode as any,
+        pieces: data.packages.length,
+        weightKg: data.packages.reduce((sum, p) => sum + (p.weight || 0), 0),
+        eta: data.shipment.expected_delivery_date || 'TBD',
+        status: data.shipment.current_status as ShipmentStatus,
+        container: data.packages[0]?.container_code,
+        shelf: data.packages[0]?.shelf_code,
+        lastScanAt: data.tracking_history[data.tracking_history.length - 1]?.timestamp,
+        history: data.tracking_history.map(h => ({
+          at: new Date(h.timestamp).toLocaleString(),
+          note: h.description,
+          hub: h.hub_name
+        }))
+      };
+      
+      setResult(transformed);
+    } catch (err: any) {
+      setErrorMsg(err.message || "Unable to fetch tracking details.");
     } finally {
-      setLoading(false);
+      setSearchLoading(false);
     }
   };
-
-  const rows: ShipmentRow[] = [
-    { id: "ITR-202510-MAA-000123", from: "Hyderabad", to: "Chennai", mode: "ROAD", packages: 12, eta: "Today 5:30 PM", status: "IN_TRANSIT" },
-    { id: "ITR-202510-BLR-000221", from: "Bangalore", to: "Mumbai", mode: "AIR", packages: 7, eta: "Tomorrow 9:00 AM", status: "DISPATCHED" },
-    { id: "ITR-202510-DEL-000078", from: "Delhi", to: "Agra", mode: "ROAD", packages: 3, eta: "Today 3:15 PM", status: "READY_FOR_PICKUP" },
-  ];
 
   return (
     <>
       <div className="grid grid-cols-12 gap-6">
+        
+        {/* Error Alert */}
+        {error && (
+          <div className="col-span-12">
+            <div className="rounded-xl border border-[var(--color-danger)]/30 bg-[var(--color-danger)]/5 p-4 flex items-start gap-3">
+              <UIIcon name="alert" className="h-5 w-5 text-[var(--color-danger)] mt-0.5" />
+              <div className="flex-1">
+                <p className="text-sm font-medium text-[var(--color-danger)]">Error loading dashboard</p>
+                <p className="text-xs text-[var(--color-danger)]/80 mt-1">{error}</p>
+              </div>
+              <Button size="sm" variant="outline" onClick={() => loadDashboardData()}>Retry</Button>
+            </div>
+          </div>
+        )}
 
         {/* Quick actions */}
         <div className="col-span-12">
@@ -270,41 +414,60 @@ const Home: React.FC = () => {
 
         {/* KPI cards */}
         <div className="col-span-12 xl:col-span-8 space-y-6">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {kpis.map((k) => (
-              <div key={k.key} className="p-5 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-sm">
-                <div className="h-12 w-12 flex items-center justify-center rounded-xl bg-[var(--color-surfaceMuted)] text-[var(--color-primary)]">
-                  <Icon name={k.key as any} className="h-6 w-6" />
+          {loading ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <div key={i} className="h-32 animate-pulse rounded-2xl bg-[var(--color-surfaceMuted)]" />
+              ))}
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              {kpis.map((k) => (
+                <div key={k.key} className="p-5 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-sm hover:shadow-md transition-shadow">
+                  <div className="h-12 w-12 flex items-center justify-center rounded-xl bg-[var(--color-surfaceMuted)] text-[var(--color-primary)]">
+                    <Icon name={k.key as any} className="h-6 w-6" />
+                  </div>
+                  <div className="mt-3">
+                    <div className="text-sm text-[var(--color-textMuted)]">{k.label}</div>
+                    <div className="text-2xl font-bold text-[var(--color-text)]">{k.value}</div>
+                  </div>
                 </div>
-                <div className="mt-3">
-                  <div className="text-sm text-[var(--color-textMuted)]">{k.label}</div>
-                  <div className="text-2xl font-bold text-[var(--color-text)]">{k.value}</div>
-                </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Check package */}
         <div className="col-span-12 xl:col-span-4">
-          <div className="p-6 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-sm">
-            <Label>Check Package</Label>
+          <div className="p-6 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-sm h-full flex flex-col">
+            <Label>Track Package</Label>
             <div className="mt-3 flex gap-2">
-              <Input value={trackId} onValueChange={setTrackId} onKeyDown={(e) => e.key === "Enter" && searchPackage()} placeholder="Enter tracking ID" />
-              <Button tone="primary" onClick={searchPackage}><UIIcon name="search" className="h-4 w-4 mr-1" /> Search</Button>
+              <Input 
+                value={trackId} 
+                onValueChange={setTrackId} 
+                onKeyDown={(e) => e.key === "Enter" && searchPackage()} 
+                placeholder="Enter tracking ID or WR number" 
+              />
+              <Button tone="primary" onClick={searchPackage} disabled={!trackId.trim()}>
+                <UIIcon name="search" className="h-4 w-4 mr-1" /> Search
+              </Button>
             </div>
+            <p className="text-xs text-[var(--color-textMuted)] mt-2">
+              Enter tracking number (ITK...) or warehouse receipt (WR...)
+            </p>
           </div>
         </div>
 
         {/* Shipments table */}
         <div className="col-span-12">
-          <ShipmentsTable rows={rows} />
+          <ShipmentsTable rows={recentShipments} loading={loading} onRefresh={() => loadDashboardData()} onViewDetails={viewShipmentDetails} />
         </div>
       </div>
 
-      <Modal title="Package Status" isOpen={showModal} onClose={() => setShowModal(false)} size="xl">
+      {/* Track Package Modal */}
+      <Modal title="Package Status" isOpen={showModal} onClose={() => setShowModal(false)} size="xl">{!showModal ? null : (
         <div className="min-w-[280px] max-w-full">
-          {loading ? (
+          {searchLoading ? (
             <div className="space-y-3">
               <div className="h-5 w-1/3 animate-pulse rounded bg-[var(--color-surfaceMuted)]" />
               <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -346,7 +509,7 @@ const Home: React.FC = () => {
             <div className="text-[var(--color-textMuted)]">No data.</div>
           )}
         </div>
-      </Modal>
+      )}</Modal>
     </>
   );
 };

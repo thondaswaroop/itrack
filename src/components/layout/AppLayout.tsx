@@ -11,15 +11,15 @@ const LayoutContent: React.FC = () => {
   const leftWidth = isExpanded || isHovered ? "lg:ml-[290px]" : "lg:ml-[90px]";
   return (
     <div className="xl:flex min-h-screen bg-[var(--color-bg)] text-[var(--color-text)]">
-      <div>
+      <div className="print:hidden">
         <SideMenu />
         <Backdrop />
       </div>
-      <div className={`flex-1 transition-all duration-300 ease-in-out ${leftWidth} ${isMobileOpen ? "ml-0" : ""}`}>
+      <div className={`flex min-h-screen flex-col flex-1 transition-all duration-300 ease-in-out ${leftWidth} ${isMobileOpen ? "ml-0" : ""} print:ml-0`}>
         <AppHeader />
-        <div className="mx-auto max-w-(--breakpoint-2xl) p-4 md:p-6">
+        <main className="flex-1 mx-auto w-full max-w-(--breakpoint-2xl) p-4 md:p-6 print:p-0">
           <Outlet />
-        </div>
+        </main>
         <AppFooter />
       </div>
     </div>

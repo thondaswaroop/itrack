@@ -121,60 +121,76 @@ export default function Modal({
   return ReactDOM.createPortal(
     isOpen ? (
       <div
-        ref={overlayRef}
-        aria-hidden={!isOpen}
-        className="fixed inset-0 z-[1000] flex items-start md:items-center justify-center"
-        onMouseDown={(e) => {
-          // overlay click to dismiss (only if click target is overlay)
-          if (!dismissible) return;
-          if (e.target === overlayRef.current) {
-            onClose();
-          }
-        }}
+        className="fixed inset-0 z-[9999] bg-black/50 backdrop-blur-sm"
+        style={{ overflow: 'auto' }}
       >
-        {/* backdrop */}
-        <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
-
-        {/* dialog */}
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-label={typeof title === "string" ? title : undefined}
-          tabIndex={-1}
-          ref={dialogRef}
-          onFocus={handleFocus}
-          className={`relative z-10 m-4 w-full ${sizeClass} ${className}`}
+        <div 
+          ref={overlayRef}
+          className="min-h-screen flex items-center justify-center p-4 py-8"
+          onMouseDown={(e) => {
+            if (!dismissible) return;
+            if (e.target === overlayRef.current) {
+              onClose();
+            }
+          }}
         >
-          <div className="transform overflow-hidden rounded-2xl bg-[var(--color-surface)] shadow-xl ring-1 ring-black/5 transition-all">
-            {/* header */}
-            <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--color-border)]">
-              <div className="text-sm font-semibold text-[var(--color-text)]">{title}</div>
-
-              <div className="flex items-center gap-2">
-                {showCloseIcon && (
-                  <button
-                    type="button"
-                    className="rounded p-1 hover:bg-[var(--color-surfaceMuted)]"
-                    onClick={onClose}
-                    aria-label="Close"
-                  >
-                    <Icon name="x" className="h-4 w-4 text-[var(--color-text)]" />
-                  </button>
-                )}
+          {/* dialog */}
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label={typeof title === "string" ? title : undefined}
+            tabIndex={-1}
+            ref={dialogRef}
+            onFocus={handleFocus}
+            className={`relative w-full ${sizeClass} ${className}`}
+            style={{ maxHeight: 'calc(100vh - 4rem)' }}
+          >
+            {/* Modal Container with Flexbox */}
+            <div 
+              className="bg-[var(--color-surface)] shadow-2xl rounded-2xl ring-1 ring-black/5"
+              style={{ 
+                display: 'grid',
+                gridTemplateRows: 'auto 1fr auto',
+                maxHeight: 'calc(100vh - 4rem)',
+                overflow: 'hidden'
+              }}
+            >
+              {/* Header - Fixed at top */}
+              <div className="px-6 py-4 border-b border-[var(--color-border)] bg-[var(--color-surface)]">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-lg font-semibold text-[var(--color-text)]">{title}</h2>
+                  {showCloseIcon && (
+                    <button
+                      type="button"
+                      className="rounded-lg p-1.5 hover:bg-[var(--color-surfaceMuted)] transition-colors"
+                      onClick={onClose}
+                      aria-label="Close"
+                    >
+                      <Icon name="x" className="h-5 w-5 text-[var(--color-textMuted)]" />
+                    </button>
+                  )}
+                </div>
               </div>
-            </div>
 
-            {/* body */}
-            <div className="max-h-[70vh] overflow-auto p-4 text-sm text-[var(--color-text)]">
-              {children}
-            </div>
-
-            {/* footer */}
-            {footer && (
-              <div className="border-t border-[var(--color-border)] px-4 py-3 bg-[var(--color-surface)]">
-                <div className="flex justify-end gap-2">{footer}</div>
+              {/* Body - Scrollable */}
+              <div 
+                className="px-6 py-4 text-sm text-[var(--color-text)]"
+                style={{ 
+                  overflowY: 'auto',
+                  overflowX: 'hidden',
+                  minHeight: 0 
+                }}
+              >
+                {children}
               </div>
-            )}
+
+              {/* Footer - Fixed at bottom */}
+              {footer && (
+                <div className="px-6 py-4 border-t border-[var(--color-border)] bg-[var(--color-surfaceMuted)]">
+                  <div className="flex justify-end gap-3">{footer}</div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>

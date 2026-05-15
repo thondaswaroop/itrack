@@ -1,8 +1,8 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { imageAssets } from "../../utils/resources";
 import { Input, Button } from "../../components";
-import { Role } from "../../constants/common";
+import { authService } from "../../services";
 
 const SignIn: React.FC = () => {
   const navigate = useNavigate();
@@ -12,33 +12,65 @@ const SignIn: React.FC = () => {
 
   const [usernameError, setUsernameError] = useState("");
   const [passwordError, setPasswordError] = useState("");
+  const [generalError, setGeneralError] = useState("");
   const [submitting, setSubmitting] = useState(false);
-
-
 
   const handleSubmit = async (e?: React.FormEvent) => {
     e?.preventDefault();
 
     setUsernameError("");
     setPasswordError("");
+    setGeneralError("");
 
     let hasError = false;
-    if (!username.trim()) (hasError = true, setUsernameError("Username is required"));
-    if (!password.trim()) (hasError = true, setPasswordError("Password is required"));
+    if (!username.trim()) {
+      hasError = true;
+      setUsernameError("Username is required");
+    }
+    if (!password.trim()) {
+      hasError = true;
+      setPasswordError("Password is required");
+    }
     if (hasError) return;
-
 
     try {
       setSubmitting(true);
-      await new Promise((r) => setTimeout(r, 600));
-
+      
+      // Call the real API
+      const response = await authService.login(username, password);
+      
+      // Store user data in localStorage (done by authService.login -> saveUser)
+      // The authService already saves to 'itrack_user'
+      
+      // Also store in UserDetails format for compatibility with other parts of the app
+      const roleId = response.user.role === 'super_admin' ? 1 : 
+                     response.user.role === 'vendor' ? 2 : 
+                     response.user.role === 'associate' ? 3 : 4;
+      
+      // Extract hub_id from response data
+      let hubId = null;
+      if (response.data?.associate?.hub_id) {
+        hubId = response.data.associate.hub_id;
+      } else if (response.data?.vendor?.hub_id) {
+        hubId = response.data.vendor.hub_id;
+      }
+      
+      // Store in UserDetails format (used by components like LoadManagement)
       localStorage.setItem(
         "UserDetails",
-        JSON.stringify({ userId: 1, roleId: Role.ADMIN })
-      )
+        JSON.stringify({ 
+          userId: response.user.id, 
+          roleId: roleId,
+          hubId: hubId
+        })
+      );
       
+      // Navigate to dashboard
       navigate("/", { replace: true });
 
+    } catch (error: any) {
+      console.error("Login error:", error);
+      setGeneralError(error.message || "Login failed. Please check your credentials.");
     } finally {
       setSubmitting(false);
     }
@@ -60,16 +92,23 @@ const SignIn: React.FC = () => {
               </div>
               <div className="mb-5 sm:mb-8">
                 <h1 className="mb-2 text-title-sm font-semibold text-gray-800 dark:text-white/90 sm:text-title-md">
-                  Sign In
+                  Sign In to iTrack
                 </h1>
                 <p className="text-sm text-gray-500 dark:text-gray-400">
-                  Enter your username, password to access your account.
+                  Enter your username and password to access your account.
                 </p>
               </div>
+
+              {generalError && (
+                <div className="mb-4 rounded-md bg-red-50 p-3 dark:bg-red-900/20">
+                  <p className="text-sm text-red-800 dark:text-red-200">{generalError}</p>
+                </div>
+              )}
 
               <form className="space-y-6" onSubmit={handleSubmit}>
                 <Input
                   label="Username *"
+                  type="text"
                   placeholder="Enter your username"
                   value={username}
                   onValueChange={setUsername}

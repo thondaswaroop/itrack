@@ -1,113 +1,56 @@
-// src/pages/shipments/NewShipment.tsx
-import React, { useMemo, useState } from "react";
+// src/pages/shipments/newshipment.tsx - Fully Dynamic Version
+import React, { useMemo, useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-
 import { Input, Button, Modal, Select } from "../../components";
 import Label from "../../components/form/Label";
 import { Icon } from "../../utils/icons";
 import ComponentCard from "../../components/common/ComponentCard";
+import { shipmentService, masterService, type Party, type Hub } from "../../services";
+import { getUser } from "../../utils/auth";
+import { Role } from "../../constants/common";
 
 /* =========================
    Types
 ========================= */
 type Mode = "AIR" | "OCEAN" | "GROUND";
-type CargoType = "Others" | "Automobile";
-type PaymentTerm = "PREPAID" | "COLLECT";
-type Condition = "GOOD" | "DAMAGED" | "HOLD";
+type PaymentTerm = "PREPAID" | "COLLECT" | "PARTIAL_PAYMENT";
 
-type Party = {
-  id: string;
-  name: string;
-  email?: string;
-  phone?: string;
-  address?: string;
-  country?: string;
-};
-
-type DimUnit = "CM" | "INCH";
-type UnitType = "CARTON(S)" | "PALLET(S)" | "BAG(S)" | "BOX(ES)";
+type DimUnit = "CM" | "INCH" | "METERS" | "FEET";
 
 type PackageRow = {
   id: string;
-  packageId?: string;
-  qrCode?: string;
   length: number | "";
   width: number | "";
   height: number | "";
   dimUnit: DimUnit;
-  pkg: number | "";
-  pcs: number | "";
-  unit: UnitType;
-  sku?: string;
-  pallet?: string;
-  actWeightKg: number | "";
-  date?: string;
-  blNo?: string;
-  description: string; // REQUIRED
+  weight: number | "";
+  description: string;
   declaredValue?: number | "";
-  storageShelf?: string;
 };
 
-type UploadedDoc = { id: string; name: string; size: number };
-
 type FormState = {
-  // Header
-  wrNo: string;
+  wrNo: string; // Serves as both WR Number and Tracking Number
   receivedAt: string;
-  loadedAt?: string;
-  location: string;
+  locationHubId: number | "";
   shipper: Party | null;
   consignee: Party | null;
-  cargoType: CargoType;
-  receivedBy?: string;
-  receivedByUserId?: string;
-  office?: string;
-  poNo?: string;
   remark?: string;
-  truckBlNo?: string;
   amount?: number | "";
-  hazardous?: boolean;
-  heatTreatedPallets?: boolean;
-  checkNo?: string;
-  commodity?: string;
+  paidAmount?: number | ""; // Amount already collected for prepaid/partial payment
 
-  // Receiving specific
   paymentTerm: PaymentTerm;
-  packageCondition: Condition;
-  holdReason?: string;
-  documents?: UploadedDoc[];
-  customerBoxId?: string;
 
-  // Route / Mode
   mode: Mode;
-  originCountry: string;
-  originHub: string;
-  destCountry: string;
-  destHub: string;
+  originHubId: number | "";
+  destHubId: number | "";
 
-  // Items
   items: PackageRow[];
 
-  // Notify
   emailNotify: boolean;
-}
-
-/* =========================
-   Mock data
-========================= */
-const COUNTRIES = ["India", "United Arab Emirates", "USA", "UK", "Germany", "Singapore"];
-const HUBS_BY_COUNTRY: Record<string, string[]> = {
-  India: ["HYD-001", "BLR-002", "MAA-003", "MUM-004", "DEL-005"],
-  "United Arab Emirates": ["DXB-01", "AUH-02", "SHJ-03"],
-  USA: ["LAX-1", "JFK-2", "ATL-3"],
-  UK: ["LHR-1", "MAN-2"],
-  Germany: ["FRA-1", "HAM-2"],
-  Singapore: ["SIN-1"],
 };
 
 /* =========================
    Small UI helpers
-   - unified Field (fixes inline error placement)
 ========================= */
 const Field: React.FC<{
   label?: string;
@@ -132,12 +75,9 @@ const Field: React.FC<{
 // Unit conversions
 const cmToCbm = (l?: number | "", w?: number | "", h?: number | "") =>
   l && w && h ? (Number(l) * Number(w) * Number(h)) / 1_000_000 : 0;
-const inchToCft = (l?: number | "", w?: number | "", h?: number | "") =>
-  l && w && h ? (Number(l) * Number(w) * Number(h)) / 1728 : 0;
-const kgToLbs = (kg?: number | "") => (kg ? Number(kg) * 2.20462 : 0);
 
 /* =========================
-   PartySelect (keeps behaviour)
+   PartySelect - Dynamic
 ========================= */
 const PartySelect: React.FC<{
   value: Party | null;
@@ -146,22 +86,36 @@ const PartySelect: React.FC<{
   onClear: () => void;
   placeholder?: string;
   onCreateNew: () => void;
-}> = ({ value, label, onSelect, onClear, placeholder, onCreateNew }) => {
+  error?: string;
+}> = ({ value, label, onSelect, onClear, placeholder, onCreateNew, error }) => {
   const [q, setQ] = useState("");
+  const [suggestions, setSuggestions] = useState<Party[]>([]);
+  const [loading, setLoading] = useState(false);
 
-  const suggestions = useMemo<Party[]>(
-    () =>
-      !q
-        ? []
-        : [
-            { id: "P-1001", name: "AER LINGUS LIMITED P.L.C.", email: "ops@aerlingus.com", country: "UK" },
-            { id: "P-1002", name: "ABOVE & BEYOND TRADING", email: "admin@abt.com", country: "UAE" },
-            { id: "P-1003", name: "Blue Retail Pvt Ltd", email: "support@blue.com", country: "India" },
-          ].filter((p) => p.name.toLowerCase().includes(q.toLowerCase())),
-    [q]
-  );
+  // Search parties
+  useEffect(() => {
+    if (!q || q.length < 2) {
+      setSuggestions([]);
+      return;
+    }
+    
+    const searchParties = async () => {
+      setLoading(true);
+      try {
+        const results = await shipmentService.getParties(q);
+        setSuggestions(results);
+      } catch (err) {
+        console.error('Error searching parties:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  const showDropdown = !value && q.length > 0;
+    const timer = setTimeout(searchParties, 300);
+    return () => clearTimeout(timer);
+  }, [q]);
+
+  const showDropdown = !value && q.length >= 2;
 
   return (
     <div className="space-y-1">
@@ -175,6 +129,7 @@ const PartySelect: React.FC<{
             setQ(v);
           }}
           placeholder={placeholder}
+         
         />
 
         <div className="pointer-events-none absolute inset-y-0 right-2 flex items-center gap-1">
@@ -191,124 +146,62 @@ const PartySelect: React.FC<{
 
         {showDropdown && (
           <div className="absolute z-20 mt-2 w-full overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-xl">
-            <ul className="max-h-56 overflow-auto text-sm">
-              {suggestions.map((s) => (
-                <li key={s.id}>
+            {loading ? (
+              <div className="p-4 text-center text-sm text-[var(--color-textMuted)]">Searching...</div>
+            ) : suggestions.length === 0 ? (
+              <div className="p-4 text-center text-sm text-[var(--color-textMuted)]">
+                No results. <button type="button" onClick={onCreateNew} className="text-[var(--color-primary)] underline">Create new</button>
+              </div>
+            ) : (
+              <ul className="max-h-56 overflow-auto text-sm">
+                {suggestions.map((s) => (
+                  <li key={s.id}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onSelect(s);
+                        setQ("");
+                      }}
+                      className="flex w-full items-start gap-3 px-3 py-2 text-left hover:bg-[var(--color-surfaceMuted)]"
+                    >
+                      <span className="mt-0.5 rounded bg-[var(--color-brand-50)] px-2 py-0.5 text-xs text-[var(--color-brand-500)]">ID</span>
+                      <div>
+                        <div className="font-medium text-[var(--color-text)]">{s.name}</div>
+                        <div className="text-xs text-[var(--color-textMuted)]">
+                          {s.email ?? "—"} {s.country ? `• ${s.country}` : ""}
+                        </div>
+                      </div>
+                    </button>
+                  </li>
+                ))}
+                <li className="border-t border-[var(--color-border)]">
                   <button
                     type="button"
-                    onClick={() => {
-                      onSelect(s);
-                      setQ("");
-                    }}
-                    className="flex w-full items-start gap-3 px-3 py-2 text-left hover:bg-[var(--color-surfaceMuted)]"
+                    className="flex w-full items-center gap-2 px-3 py-2 text-left text-[var(--color-primary)] hover:bg-[var(--color-surfaceMuted)]"
+                    onClick={onCreateNew}
                   >
-                    <span className="mt-0.5 rounded bg-[var(--color-brand-50)] px-2 py-0.5 text-xs text-[var(--color-brand-500)]">ID</span>
-                    <div>
-                      <div className="font-medium text-[var(--color-text)]">{s.name}</div>
-                      <div className="text-xs text-[var(--color-textMuted)]">{s.email ?? "—"} {s.country ? `• ${s.country}` : ""}</div>
-                    </div>
+                    <Icon name="plus" className="h-4 w-4" /> Create new
                   </button>
                 </li>
-              ))}
-              <li className="border-t border-[var(--color-border)]">
-                <button type="button" className="flex w-full items-center gap-2 px-3 py-2 text-left text-[var(--color-primary)] hover:bg-[var(--color-surfaceMuted)]" onClick={onCreateNew}>
-                  <Icon name="plus" className="h-4 w-4" /> Create new
-                </button>
-              </li>
-            </ul>
+              </ul>
+            )}
           </div>
         )}
       </div>
+      {error && <p className="text-xs text-[var(--color-danger)] mt-1">{error}</p>}
     </div>
   );
 };
 
 /* =========================
-   ConfirmReceiptModal
-========================= */
-const ConfirmReceiptModal: React.FC<{
-  isOpen: boolean;
-  onClose: () => void;
-  onConfirm: () => Promise<void>;
-  formState: FormState;
-  totals: { totalPkg: number; totalPcs: number; cbm: number; cft: number; actKg: number; actLbs: number };
-}> = ({ isOpen, onClose, onConfirm, formState, totals }) => {
-  if (!isOpen) return null;
-  return (
-    <Modal
-      isOpen={isOpen}
-      onClose={onClose}
-      title="Confirm Warehouse Receipt"
-      size="lg"
-      dismissible
-      showCloseIcon
-      footer={
-        <>
-          <Button variant="outline" tone="neutral" onClick={onClose}>Cancel</Button>
-          <Button variant="solid" tone="primary" onClick={onConfirm}>Confirm & Print</Button>
-        </>
-      }
-    >
-      <div className="space-y-4 p-2">
-        <div className="text-sm">
-          <div><strong>WR No:</strong> {formState.wrNo}</div>
-          <div><strong>Received At:</strong> {new Date(formState.receivedAt).toLocaleString()}</div>
-          <div><strong>Location:</strong> {formState.location}</div>
-          <div><strong>Payment:</strong> {formState.paymentTerm}</div>
-          <div><strong>Condition:</strong> {formState.packageCondition}{formState.packageCondition !== "GOOD" && formState.holdReason ? ` — ${formState.holdReason}` : ""}</div>
-        </div>
-
-        <hr />
-
-        <div>
-          <div className="font-medium mb-2">Shipper</div>
-          <div className="text-sm">{formState.shipper?.name ?? "—"} {formState.shipper?.email ? `• ${formState.shipper.email}` : ""}</div>
-        </div>
-
-        <div>
-          <div className="font-medium mt-3 mb-2">Consignee</div>
-          <div className="text-sm">{formState.consignee?.name ?? "—"} {formState.consignee?.email ? `• ${formState.consignee.email}` : ""}</div>
-        </div>
-
-        <div>
-          <div className="font-medium mt-3 mb-2">Packages</div>
-          <div className="max-h-48 overflow-auto border rounded p-2">
-            <table className="w-full text-sm">
-              <thead className="text-[var(--color-textMuted)] text-xs">
-                <tr><th className="p-1">#</th><th className="p-1">Dim (L×W×H)</th><th className="p-1">Unit</th><th className="p-1">Wt (kg)</th><th className="p-1">Description</th></tr>
-              </thead>
-              <tbody>
-                {formState.items.map((it, i) => (
-                  <tr key={it.id} className="border-t">
-                    <td className="p-1 text-xs">{i + 1}</td>
-                    <td className="p-1 text-xs">{it.length || "-"} × {it.width || "-"} × {it.height || "-"} {it.dimUnit}</td>
-                    <td className="p-1 text-xs">{it.unit} / {it.pkg || 0} pkgs</td>
-                    <td className="p-1 text-xs">{it.actWeightKg || 0}</td>
-                    <td className="p-1 text-xs">{it.description || "—"}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        <div className="mt-3 text-sm">
-          <div><strong>Totals:</strong> Packages {totals.totalPkg} • Pieces {totals.totalPcs} • CBM {totals.cbm.toFixed(3)} • Weight {totals.actKg} kg</div>
-        </div>
-
-        <div className="mt-3 text-sm text-[var(--color-textMuted)]">
-          You will be able to preview and print the receipt after confirmation.
-        </div>
-      </div>
-    </Modal>
-  );
-};
-
-/* =========================
-   Page: NewShipment (Receiving only)
+   Page: NewShipment (Fully Dynamic)
 ========================= */
 const NewShipment: React.FC = () => {
   const navigate = useNavigate();
+
+  // Dynamic Data
+  const [hubs, setHubs] = useState<Hub[]>([]);
+  const [loading, setLoading] = useState(true);
 
   const [state, setState] = useState<FormState>(() => {
     const now = new Date();
@@ -316,57 +209,28 @@ const NewShipment: React.FC = () => {
     return {
       wrNo: wr,
       receivedAt: now.toISOString().slice(0, 16),
-      loadedAt: "",
-      location: "HYD-001",
-
+      locationHubId: "",
       shipper: null,
       consignee: null,
-
-      cargoType: "Others",
-      receivedBy: "Super Admin",
-      receivedByUserId: "U-0001",
-      office: "HCT",
-      poNo: "",
       remark: "",
-      truckBlNo: "MANUAL123",
       amount: "",
-      hazardous: false,
-      heatTreatedPallets: false,
-      checkNo: "",
-      commodity: "",
-
-      // Receiving-specific
+      paidAmount: "",
       paymentTerm: "COLLECT",
-      packageCondition: "GOOD",
-      holdReason: "",
-      documents: [],
-      customerBoxId: "",
-
       mode: "GROUND",
-      originCountry: "India",
-      originHub: "HYD-001",
-      destCountry: "",
-      destHub: "",
-
+      originHubId: "",
+      destHubId: "",
       items: [
         {
           id: crypto.randomUUID(),
-          packageId: undefined,
-          qrCode: undefined,
-          length: 100,
-          width: 100,
-          height: 120,
+          length: "",
+          width: "",
+          height: "",
           dimUnit: "CM",
-          pkg: 1,
-          pcs: 200,
-          unit: "CARTON(S)",
-          actWeightKg: 0,
+          weight: "",
           description: "",
           declaredValue: "",
-          storageShelf: "",
         },
       ],
-
       emailNotify: true,
     } as FormState;
   });
@@ -375,20 +239,53 @@ const NewShipment: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const [openNewShipper, setOpenNewShipper] = useState(false);
   const [openNewConsignee, setOpenNewConsignee] = useState(false);
-  const [openConfirm, setOpenConfirm] = useState(false);
 
-  // flatten hubs (all hubs) for header Location select
-  const allHubs = useMemo(() => {
-    const list: { value: string; label: string }[] = [];
-    Object.entries(HUBS_BY_COUNTRY).forEach(([country, hubs]) => {
-      hubs.forEach((h) => list.push({ value: h, label: `${h} — ${country}` }));
-    });
-    return list;
-  }, []);
+  // Get current user for hub auto-detection
+  const currentUser = getUser();
+  const isAdmin = currentUser?.roleId === Role.ADMIN;
+  const userHubId = currentUser?.hubId ? Number(currentUser.hubId) : null;
 
-  const countryOptions = useMemo(() => COUNTRIES.map((c) => ({ value: c, label: c })), []);
-  const originHubOptions = useMemo(() => (HUBS_BY_COUNTRY[state.originCountry] ?? []).map((h) => ({ value: h, label: h })), [state.originCountry]);
-  const destHubOptions = useMemo(() => (HUBS_BY_COUNTRY[state.destCountry] ?? []).map((h) => ({ value: h, label: h })), [state.destCountry]);
+  // Load dynamic data
+  useEffect(() => {
+    const loadData = async () => {
+      setLoading(true);
+      try {
+        const hubsData = await masterService.getHubs();
+        setHubs(hubsData);
+        
+        // Auto-populate hub for non-admin users
+        if (!isAdmin && userHubId) {
+          console.log('NewShipment: Auto-populating hub for non-admin user. Hub ID:', userHubId);
+          setState(prev => ({
+            ...prev,
+            locationHubId: userHubId,
+            originHubId: userHubId,
+          }));
+        } else if (hubsData.length > 0) {
+          // Admin users: set default to first hub
+          setState(prev => ({
+            ...prev,
+            locationHubId: hubsData[0].id,
+            originHubId: hubsData[0].id,
+          }));
+        }
+      } catch (err) {
+        console.error('Error loading data:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadData();
+  }, [isAdmin, userHubId]);
+
+  // Options for dropdowns
+  const hubOptions = useMemo(() => 
+    hubs.map(h => ({ 
+      value: h.id.toString(), 
+      label: `${h.hub_name} (${h.hub_code}) - ${h.location_name || ''}` 
+    })),
+    [hubs]
+  );
 
   const setField = <K extends keyof FormState>(k: K, v: FormState[K]) => setState((s) => ({ ...s, [k]: v }));
 
@@ -400,145 +297,228 @@ const NewShipment: React.FC = () => {
         ...s.items,
         {
           id: crypto.randomUUID(),
-          packageId: undefined,
-          qrCode: undefined,
           length: "",
           width: "",
           height: "",
           dimUnit: "CM",
-          pkg: "",
-          pcs: "",
-          unit: "CARTON(S)",
-          actWeightKg: "",
+          weight: "",
           description: "",
           declaredValue: "",
-          storageShelf: "",
         },
       ],
     }));
+    
   const updRow = (id: string, patch: Partial<PackageRow>) =>
     setState((s) => ({ ...s, items: s.items.map((r) => (r.id === id ? { ...r, ...patch } : r)) }));
+    
   const delRow = (id: string) => setState((s) => ({ ...s, items: s.items.filter((r) => r.id !== id) }));
 
   /* totals */
   const totals = useMemo(() => {
-    let totalPkg = 0, totalPcs = 0, cbm = 0, cft = 0, actKg = 0;
+    let cbm = 0, totalWeight = 0;
     state.items.forEach((r) => {
-      totalPkg += Number(r.pkg || 0);
-      totalPcs += Number(r.pcs || 0);
       if (r.dimUnit === "CM") cbm += cmToCbm(r.length, r.width, r.height);
-      else cft += inchToCft(r.length, r.width, r.height);
-      actKg += Number(r.actWeightKg || 0);
+      totalWeight += Number(r.weight || 0);
     });
-    return { totalPkg, totalPcs, cbm, cft, actKg, actLbs: kgToLbs(actKg) };
+    return { cbm, totalWeight };
   }, [state.items]);
 
-  /* files stub */
-  const handleFiles = (files: FileList | null) => {
-    if (!files || files.length === 0) return;
-    const arr: UploadedDoc[] = [];
-    for (let i = 0; i < files.length; i++) {
-      const f = files[i];
-      arr.push({ id: `DOC-${Date.now()}-${i}`, name: f.name, size: f.size });
-    }
-    setField("documents", [...(state.documents ?? []), ...arr] as UploadedDoc[]);
-  };
-  const removeDoc = (id: string) => setField("documents", (state.documents ?? []).filter((d) => d.id !== id));
-
-  /* validation (receiving only) */
+  /* validation */
   const validate = () => {
     const e: Record<string, string> = {};
+    
+    // Basic required fields
     if (!state.receivedAt || !String(state.receivedAt).trim()) e.receivedAt = "Required";
-    if (!state.location || !String(state.location).trim()) e.location = "Required";
+    if (!state.locationHubId) e.locationHubId = "Required";
     if (!state.consignee || !state.consignee.name) e.consignee = "Select or create consignee";
-    if (!state.destCountry || !String(state.destCountry).trim()) e.destCountry = "Required";
-    if (!state.destHub || !String(state.destHub).trim()) e.destHub = "Required";
-    if (!state.items || state.items.length === 0) e.items = "Add at least one row";
+    if (!state.destHubId) e.destHubId = "Required";
+    if (!state.originHubId) e.originHubId = "Origin hub is required";
+    if (!state.items || state.items.length === 0) e.items = "Add at least one package";
 
-    if (!state.paymentTerm) e.paymentTerm = "Select payment term";
-    if (!state.packageCondition) e.packageCondition = "Select package condition";
+    // Logistics validations
+    // 1. Shipper and Consignee cannot be the same person
+    if (state.shipper && state.consignee) {
+      if (state.shipper.id && state.consignee.id && state.shipper.id === state.consignee.id) {
+        e.consignee = "Shipper and consignee cannot be the same party";
+      } else if (state.shipper.name && state.consignee.name && 
+                 state.shipper.name.toLowerCase().trim() === state.consignee.name.toLowerCase().trim() &&
+                 state.shipper.email && state.consignee.email &&
+                 state.shipper.email.toLowerCase().trim() === state.consignee.email.toLowerCase().trim()) {
+        e.consignee = "Shipper and consignee cannot be the same person";
+      }
+    }
 
+    // 2. Origin and Destination hubs cannot be the same
+    if (state.originHubId && state.destHubId && state.originHubId === state.destHubId) {
+      e.destHubId = "Destination hub must be different from origin hub";
+    }
+
+    // 3. Location hub should match origin hub for new shipments
+    if (state.locationHubId && state.originHubId && state.locationHubId !== state.originHubId) {
+      e.locationHubId = "Receiving location should match origin hub";
+    }
+
+    // Package validations
     const missingDesc = state.items.some((it) => !it.description || !String(it.description).trim());
-    if (missingDesc) e.items = "Each package must include a description of contents";
+    if (missingDesc) e.items = "Each package must include a description";
 
-    if (state.packageCondition !== "GOOD" && (!state.holdReason || !String(state.holdReason).trim())) {
-      e.holdReason = "Provide reason for holding/damage";
+    const missingWeight = state.items.some((it) => !it.weight || Number(it.weight) <= 0);
+    if (missingWeight) e.items = "Each package must have a valid weight";
+
+    // At least one dimension should be provided for volumetric calculations
+    const missingDimensions = state.items.some((it) => {
+      const hasLength = it.length && Number(it.length) > 0;
+      const hasWidth = it.width && Number(it.width) > 0;
+      const hasHeight = it.height && Number(it.height) > 0;
+      return !(hasLength && hasWidth && hasHeight);
+    });
+    if (missingDimensions && !e.items) {
+      e.items = "Each package should have dimensions (length, width, height) for volumetric weight calculation";
     }
 
     setErrors(e);
     return Object.keys(e).length === 0;
   };
 
-  /* === confirm/print flow === */
-  const handlePreview = () => {
+  /* === Save shipment === */
+  const handleSave = async () => {
     if (!validate()) return;
-    setOpenConfirm(true);
-  };
 
-  const doConfirmAndPrint = async () => {
     setSaving(true);
     try {
-      // Build payload for server
       const payload = {
-        wrNo: state.wrNo,
-        receivedAt: state.receivedAt,
-        location: state.location,
-        shipper: state.shipper,
-        consignee: state.consignee,
-        paymentTerm: state.paymentTerm,
-        packageCondition: state.packageCondition,
-        holdReason: state.holdReason,
-        customerBoxId: state.customerBoxId,
-        documents: state.documents,
-        receivedByUserId: state.receivedByUserId,
-        office: state.office,
-        remark: state.remark,
-        poNo: state.poNo,
-        cargoType: state.cargoType,
-        mode: state.mode,
-        originCountry: state.originCountry,
-        originHub: state.originHub,
-        destCountry: state.destCountry,
-        destHub: state.destHub,
-        items: state.items.map((it) => ({
-          length: it.length, width: it.width, height: it.height, dimUnit: it.dimUnit,
-          pkg: it.pkg, pcs: it.pcs, unit: it.unit,
-          actWeightKg: it.actWeightKg, description: it.description,
-          declaredValue: it.declaredValue,
+        wr_number: state.wrNo,
+        tracking_number: state.wrNo, // Same value for both WR Number and Tracking Number
+        origin_hub_id: Number(state.originHubId),
+        destination_hub_id: Number(state.destHubId),
+        transport_mode: state.mode,
+        payment_type: state.paymentTerm.toLowerCase() as 'prepaid' | 'collect' | 'partial_payment',
+        total_amount: Number(state.amount) || 0,
+        paid_amount: state.paymentTerm === "PARTIAL_PAYMENT" || state.paymentTerm === "PREPAID" ? Number(state.paidAmount) || 0 : 0,
+        
+        // Party references
+        shipper_id: state.shipper?.id,
+        consignee_id: state.consignee?.id,
+        
+        // Inline shipper data (if no party selected)
+        ...(!state.shipper?.id && state.shipper ? {
+          shipper_name: state.shipper.name,
+          shipper_email: state.shipper.email,
+          shipper_phone: state.shipper.phone,
+          shipper_address: state.shipper.address,
+          shipper_city: state.shipper.city,
+          shipper_country: state.shipper.country,
+          shipper_postal_code: state.shipper.postal_code,
+        } : {}),
+        
+        // Inline consignee data (if no party selected)
+        ...(!state.consignee?.id && state.consignee ? {
+          consignee_name: state.consignee.name,
+          consignee_email: state.consignee.email,
+          consignee_phone: state.consignee.phone,
+          consignee_address: state.consignee.address,
+          consignee_city: state.consignee.city,
+          consignee_country: state.consignee.country,
+          consignee_postal_code: state.consignee.postal_code,
+        } : {}),
+        
+        packages: state.items.map(it => ({
+          weight: Number(it.weight || 0),
+          length: Number(it.length || 0),
+          width: Number(it.width || 0),
+          height: Number(it.height || 0),
+          description: it.description,
+          declared_value: Number(it.declaredValue || 0),
+          quantity: 1,
         })),
-        emailNotify: state.emailNotify,
+        
+        currency: 'USD',
+        notes: state.remark,
       };
 
-      // TODO: replace with actual POST to server: POST /api/warehouse-receipts
-      await new Promise((r) => setTimeout(r, 800));
-
-      // Mock server response: server returns canonical orderId and package ids, printHtml
-      const mockResponse = {
-        orderId: `ORD-${Date.now()}`,
-        packages: state.items.map((it, idx) => ({ packageId: `PKG-${Date.now()}-${idx + 1}`, qr: `QR-${Math.random().toString(36).slice(2, 10)}` })),
-        printHtml: null as string | null,
-      };
-
-      // Generate printable HTML client-side if server didn't provide printHtml / URL
-      const printHtml = mockResponse.printHtml ?? generateReceiptHtml(mockResponse.orderId, payload, mockResponse.packages, totals);
-
-      // Open print window and write
-      const w = window.open("", "_blank");
-      if (w) {
-        w.document.write(printHtml);
-        w.document.close();
-        setTimeout(() => {
-          try { w.print(); } catch (err) { /* ignore */ }
-        }, 500);
-      }
-
-      setOpenConfirm(false);
-      console.log("RECEIVE_RESPONSE", mockResponse);
-      navigate("/home");
+      const result = await shipmentService.createShipment(payload);
+      
+      // Navigate to receipt page with shipment data
+      navigate('/receipt', {
+        state: {
+          wrNumber: result.wr_number || state.wrNo,
+          trackingNumber: result.tracking_number || state.wrNo,
+          receivedDate: state.receivedAt,
+          originHub: hubs.find(h => h.id === state.originHubId)?.hub_name || 'Unknown',
+          destinationHub: hubs.find(h => h.id === state.destHubId)?.hub_name || 'Unknown',
+          shipperName: state.shipper?.name || '',
+          shipperPhone: state.shipper?.phone || '',
+          shipperAddress: state.shipper?.address,
+          consigneeName: state.consignee?.name || '',
+          consigneePhone: state.consignee?.phone || '',
+          consigneeAddress: state.consignee?.address,
+          packages: state.items.map(it => ({
+            weight: Number(it.weight || 0),
+            length: Number(it.length || 0),
+            width: Number(it.width || 0),
+            height: Number(it.height || 0),
+            description: it.description,
+            declared_value: Number(it.declaredValue || 0),
+            quantity: 1,
+          })),
+          transportMode: state.mode,
+          paymentType: state.paymentTerm.toLowerCase(),
+          totalAmount: Number(state.amount) || 0,
+          paidAmount: Number(state.paidAmount) || 0,
+          pendingAmount: (Number(state.amount) || 0) - (Number(state.paidAmount) || 0),
+          currency: 'USD',
+          notes: state.remark,
+          status: 'RECEIVED' as const
+        }
+      });
+      setSaving(false);
+    } catch (err: any) {
+      alert('Error creating shipment: ' + (err.message || 'Unknown error'));
     } finally {
       setSaving(false);
     }
   };
+
+  /* Create party from modal */
+  const handleCreateParty = async (isShipper: boolean, partyData: Partial<Party>) => {
+    try {
+      const newParty = await shipmentService.createParty({
+        name: partyData.name || '',
+        email: partyData.email,
+        phone: partyData.phone,
+        address: partyData.address,
+        city: partyData.city,
+        country: partyData.country,
+        postal_code: partyData.postal_code,
+        party_type: 'both',
+      });
+      
+      if (isShipper) {
+        setField('shipper', newParty);
+        setOpenNewShipper(false);
+      } else {
+        setField('consignee', newParty);
+        setOpenNewConsignee(false);
+      }
+    } catch (err: any) {
+      alert('Error creating party: ' + (err.message || 'Unknown error'));
+    }
+  };
+
+  /* Helper functions */
+  const generateWRNumber = () => {
+    const now = new Date();
+    const wr = `WR-${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}${String(now.getDate()).padStart(2, "0")}-${Math.floor(Math.random() * 9000 + 1000)}`;
+    setField("wrNo", wr);
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-96">
+        <div className="text-[var(--color-textMuted)]">Loading...</div>
+      </div>
+    );
+  }
 
   /* =========================
      Render
@@ -548,21 +528,37 @@ const NewShipment: React.FC = () => {
       {/* LEFT column */}
       <div className="col-span-12 xl:col-span-8 space-y-6">
         {/* Header form */}
-        <ComponentCard title="Warehouse Receipt (Receiving)">
+        <ComponentCard title="New Shipment / Warehouse Receipt">
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-            <Field label="* Warehouse Receipt No.">
-              <Input value={state.wrNo} onValueChange={(v) => setField("wrNo", v)} />
+            <Field label="WR Number / Tracking Number" required>
+              <div className="flex gap-2">
+                <Input 
+                  value={state.wrNo} 
+                  onValueChange={(v) => setField("wrNo", v)} 
+                  placeholder="Enter or auto-generate" 
+                  
+                  className="flex-1"
+                />
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={generateWRNumber}
+                  title="Generate new number"
+                >
+                  🔄
+                </Button>
+              </div>
             </Field>
 
-            <Field label="* Received Date/Time" error={errors.receivedAt}>
+            <Field label="Received Date/Time" error={errors.receivedAt} required>
               <Input type="datetime-local" value={state.receivedAt} onValueChange={(v) => setField("receivedAt", v)} />
             </Field>
 
-            <Field label="Location/HUB *" error={errors.location}>
+            <Field label="Receiving Location/Hub" error={errors.locationHubId} required>
               <Select
-                options={allHubs}
-                value={state.location}
-                onChange={(v) => setField("location", v)}
+                options={hubOptions}
+                value={state.locationHubId?.toString() || ''}
+                onChange={(v) => setField("locationHubId", Number(v))}
                 placeholder="Select Hub"
                 searchable
                 searchPlaceholder="Search hubs..."
@@ -570,52 +566,82 @@ const NewShipment: React.FC = () => {
             </Field>
 
             <div>
-              <PartySelect label="Shipper (Customer)" value={state.shipper} onSelect={(p) => setField("shipper", p)} onClear={() => setField("shipper", null)} placeholder="Search shipper" onCreateNew={() => setOpenNewShipper(true)} />
+              <PartySelect 
+                label="Shipper (Customer)" 
+                value={state.shipper} 
+                onSelect={(p) => setField("shipper", p)} 
+                onClear={() => setField("shipper", null)} 
+               
+                placeholder="Search shipper..." 
+                onCreateNew={() => setOpenNewShipper(true)} 
+              />
             </div>
 
             <div>
-              <PartySelect label="Consignee (Receiver) *" value={state.consignee} onSelect={(p) => setField("consignee", p)} onClear={() => setField("consignee", null)} placeholder="Search consignee" onCreateNew={() => setOpenNewConsignee(true)} />
-              {errors.consignee && <p className="text-xs text-[var(--color-danger)] mt-1">{errors.consignee}</p>}
+              <PartySelect 
+                label="Consignee (Receiver)" 
+                value={state.consignee} 
+                onSelect={(p) => setField("consignee", p)} 
+                onClear={() => setField("consignee", null)} 
+               
+                placeholder="Search consignee..." 
+                onCreateNew={() => setOpenNewConsignee(true)} 
+                error={errors.consignee}
+                required
+              />
             </div>
 
-            <Field label="Customer Box ID (if any)">
-              <Input value={state.customerBoxId ?? ""} onValueChange={(v) => setField("customerBoxId", v)} placeholder="TNT-1234" />
-            </Field>
-
-            <Field label="Payment Term *" error={errors.paymentTerm}>
+            <Field label="Payment Term" required>
               <div className="flex gap-2">
-                <button type="button" className={`rounded-lg border px-3 py-1.5 text-sm ${state.paymentTerm === "COLLECT" ? "border-[var(--color-primary)] bg-[var(--color-primary)]/10 text-[var(--color-primary)]" : "border-[var(--color-border)] text-[var(--color-textMuted)]"}`} onClick={() => setField("paymentTerm", "COLLECT")}>Collect</button>
-                <button type="button" className={`rounded-lg border px-3 py-1.5 text-sm ${state.paymentTerm === "PREPAID" ? "border-[var(--color-primary)] bg-[var(--color-primary)]/10 text-[var(--color-primary)]" : "border-[var(--color-border)] text-[var(--color-textMuted)]"}`} onClick={() => setField("paymentTerm", "PREPAID")}>Prepaid</button>
+                <button 
+                  type="button" 
+                  className={`rounded-lg border px-3 py-1.5 text-sm ${state.paymentTerm === "COLLECT" ? "border-[var(--color-primary)] bg-[var(--color-primary)]/10 text-[var(--color-primary)]" : "border-[var(--color-border)] text-[var(--color-textMuted)]"}`} 
+                  onClick={() => setField("paymentTerm", "COLLECT")}
+                >
+                  Collect
+                </button>
+                <button 
+                  type="button" 
+                  className={`rounded-lg border px-3 py-1.5 text-sm ${state.paymentTerm === "PREPAID" ? "border-[var(--color-primary)] bg-[var(--color-primary)]/10 text-[var(--color-primary)]" : "border-[var(--color-border)] text-[var(--color-textMuted)]"}`} 
+                  onClick={() => setField("paymentTerm", "PREPAID")}
+                >
+                  Prepaid
+                </button>
+                <button 
+                  type="button" 
+                  className={`rounded-lg border px-3 py-1.5 text-sm ${state.paymentTerm === "PARTIAL_PAYMENT" ? "border-[var(--color-primary)] bg-[var(--color-primary)]/10 text-[var(--color-primary)]" : "border-[var(--color-border)] text-[var(--color-textMuted)]"}`} 
+                  onClick={() => setField("paymentTerm", "PARTIAL_PAYMENT")}
+                >
+                  Partial Payment
+                </button>
               </div>
             </Field>
 
-            <Field label="Package Condition *" error={errors.packageCondition}>
-              <div className="flex gap-2">
-                <button type="button" className={`rounded-lg border px-3 py-1.5 text-sm ${state.packageCondition === "GOOD" ? "border-[var(--color-primary)] bg-[var(--color-primary)]/10 text-[var(--color-primary)]" : "border-[var(--color-border)] text-[var(--color-textMuted)]"}`} onClick={() => setField("packageCondition", "GOOD")}>Good</button>
-                <button type="button" className={`rounded-lg border px-3 py-1.5 text-sm ${state.packageCondition === "DAMAGED" ? "border-[var(--color-primary)] bg-[var(--color-primary)]/10 text-[var(--color-primary)]" : "border-[var(--color-border)] text-[var(--color-textMuted)]"}`} onClick={() => setField("packageCondition", "DAMAGED")}>Damaged</button>
-                <button type="button" className={`rounded-lg border px-3 py-1.5 text-sm ${state.packageCondition === "HOLD" ? "border-[var(--color-primary)] bg-[var(--color-primary)]/10 text-[var(--color-primary)]" : "border-[var(--color-border)] text-[var(--color-textMuted)]"}`} onClick={() => setField("packageCondition", "HOLD")}>Hold</button>
-              </div>
-            </Field>
-
-            {state.packageCondition !== "GOOD" && (
-              <Field label="Hold / Damage Reason (required when not 'Good')" className="md:col-span-2 lg:col-span-3" error={errors.holdReason}>
-                <Input value={state.holdReason ?? ""} onValueChange={(v) => setField("holdReason", v)} />
-              </Field>
-            )}
-
-            <Field label="Estimated Price">
+            <Field label="Estimated Amount">
               <Input type="number" value={String(state.amount ?? "")} onValueChange={(v) => setField("amount", v ? Number(v) : "")} placeholder="0" />
             </Field>
 
-            <Field label="Any specific remarks / comments about the package" className="md:col-span-2 lg:col-span-3">
-              <Input value={state.remark ?? ""} onValueChange={(v) => setField("remark", v)} />
+            {(state.paymentTerm === "PREPAID" || state.paymentTerm === "PARTIAL_PAYMENT") && (
+              <Field label={state.paymentTerm === "PREPAID" ? "Prepaid Amount" : "Amount Already Collected"}>
+                <Input 
+                  type="number" 
+                  value={String(state.paidAmount ?? "")} 
+                  onValueChange={(v) => setField("paidAmount", v ? Number(v) : "")} 
+                  placeholder="0" 
+                  
+                />
+              </Field>
+            )}
+
+            <Field label="Remarks" className="md:col-span-2 lg:col-span-3">
+              <Input value={state.remark ?? ""} onValueChange={(v) => setField("remark", v)} placeholder="Any additional notes..." />
             </Field>
           </div>
         </ComponentCard>
 
         {/* Route & Mode */}
         <ComponentCard
-          title="Route & Mode"
+          title="Route & Transport Mode"
           right={
             <div className="flex items-center gap-2">
               {(["AIR", "OCEAN", "GROUND"] as Mode[]).map((m) => (
@@ -632,42 +658,26 @@ const NewShipment: React.FC = () => {
           }
         >
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <Field label="Origin Country">
-              <Select
-                options={countryOptions}
-                value={state.originCountry}
-                onChange={(v) => {
-                  setField("originCountry", v);
-                  const hubs = HUBS_BY_COUNTRY[v] ?? [];
-                  setField("originHub", hubs[0] ?? "");
-                }}
-                placeholder="Select country"
-                searchable
-                searchPlaceholder="Search countries..."
-              />
-            </Field>
-
             <Field label="Origin Hub">
-              <Select options={originHubOptions} value={state.originHub} onChange={(v) => setField("originHub", v)} placeholder="Select origin hub" searchable searchPlaceholder="Search hubs..." />
-            </Field>
-
-            <Field label="Destination Country" error={errors.destCountry}>
-              <Select
-                options={countryOptions}
-                value={state.destCountry}
-                onChange={(v) => {
-                  setField("destCountry", v);
-                  const hubs = HUBS_BY_COUNTRY[v] ?? [];
-                  setField("destHub", hubs[0] ?? "");
-                }}
-                placeholder="Select country"
-                searchable
-                searchPlaceholder="Search countries..."
+              <Select 
+                options={hubOptions} 
+                value={state.originHubId?.toString() || ''} 
+                onChange={(v) => setField("originHubId", Number(v))} 
+                placeholder="Select origin hub" 
+                searchable 
+                searchPlaceholder="Search hubs..." 
               />
             </Field>
 
-            <Field label="Destination Hub" error={errors.destHub}>
-              <Select options={destHubOptions} value={state.destHub} onChange={(v) => setField("destHub", v)} placeholder="Select destination hub" searchable searchPlaceholder="Search hubs..." />
+            <Field label="Destination Hub" error={errors.destHubId} required>
+              <Select 
+                options={hubOptions} 
+                value={state.destHubId?.toString() || ''} 
+                onChange={(v) => setField("destHubId", Number(v))} 
+                placeholder="Select destination hub" 
+                searchable 
+                searchPlaceholder="Search hubs..." 
+              />
             </Field>
           </div>
         </ComponentCard>
@@ -677,7 +687,7 @@ const NewShipment: React.FC = () => {
           title="Packages"
           right={
             <Button variant="outline" onClick={addRow}>
-              <Icon name="plus" className="h-4 w-4" /> Add
+              <Icon name="plus" className="h-4 w-4" /> Add Package
             </Button>
           }
         >
@@ -688,8 +698,10 @@ const NewShipment: React.FC = () => {
                   <th className="px-3 py-2">Length</th>
                   <th className="px-3 py-2">Width</th>
                   <th className="px-3 py-2">Height</th>
-                  <th className="px-3 py-2">Dimension</th>
-                  <th className="px-3 py-2">Description</th>
+                  <th className="px-3 py-2">Unit</th>
+                  <th className="px-3 py-2">Weight (kg)</th>
+                  <th className="px-3 py-2">Description *</th>
+                  <th className="px-3 py-2">Value</th>
                   <th className="px-3 py-2"></th>
                 </tr>
               </thead>
@@ -706,16 +718,26 @@ const NewShipment: React.FC = () => {
                       <Input type="number" value={String(r.height ?? "")} onValueChange={(v) => updRow(r.id, { height: v ? Number(v) : "" })} />
                     </td>
                     <td className="px-3 py-2 min-w-28">
-                      <select className="w-full rounded-md border border-[var(--color-border)] bg-transparent px-3 py-2 text-[var(--color-text)] outline-none" value={r.dimUnit} onChange={(e) => updRow(r.id, { dimUnit: e.target.value as DimUnit })}>
+                      <select 
+                        className="w-full rounded-md border border-[var(--color-border)] bg-transparent px-3 py-2 text-[var(--color-text)] outline-none" 
+                        value={r.dimUnit} 
+                        onChange={(e) => updRow(r.id, { dimUnit: e.target.value as DimUnit })}
+                      >
                         <option value="CM">CM</option>
                         <option value="INCH">INCH</option>
+                        <option value="METERS">METERS</option>
+                        <option value="FEET">FEET</option>
                       </select>
                     </td>
-
-                    <td className="px-3 py-2 min-w-36">
-                      <Input value={r.description ?? ""} onValueChange={(v) => updRow(r.id, { description: v })} placeholder="Contents description (required)" />
+                    <td className="px-3 py-2 min-w-28">
+                      <Input type="number" value={String(r.weight ?? "")} onValueChange={(v) => updRow(r.id, { weight: v ? Number(v) : "" })} placeholder="0" />
                     </td>
-
+                    <td className="px-3 py-2 min-w-36">
+                      <Input value={r.description ?? ""} onValueChange={(v) => updRow(r.id, { description: v })} placeholder="Package contents" />
+                    </td>
+                    <td className="px-3 py-2 min-w-28">
+                      <Input type="number" value={String(r.declaredValue ?? "")} onValueChange={(v) => updRow(r.id, { declaredValue: v ? Number(v) : "" })} placeholder="0" />
+                    </td>
                     <td className="px-3 py-2 min-w-16">
                       <Button variant="ghost" tone="danger" onClick={() => delRow(r.id)}>
                         <Icon name="trash" className="h-4 w-4" />
@@ -727,11 +749,10 @@ const NewShipment: React.FC = () => {
             </table>
           </div>
 
-          {/* Items-level error (keeps it placed directly inside the Card) */}
           {errors.items && <p className="mt-2 text-xs text-[var(--color-danger)]">{errors.items}</p>}
 
           <div className="mt-3 text-sm text-[var(--color-textMuted)]">
-            Totals: Packages {totals.totalPkg} • Pieces {totals.totalPcs} • CBM {totals.cbm.toFixed(3)} • Weight {totals.actKg} kg ({totals.actLbs.toFixed(1)} lbs)
+            Totals: Packages {state.items.length} • CBM {totals.cbm.toFixed(3)} • Weight {totals.totalWeight.toFixed(2)} kg
           </div>
         </ComponentCard>
 
@@ -743,7 +764,7 @@ const NewShipment: React.FC = () => {
           </label>
           <div className="flex items-center gap-3">
             <Button variant="outline" onClick={() => navigate(-1)}>Cancel</Button>
-            <Button loading={saving} onClick={handlePreview}>Save & Preview</Button>
+            <Button loading={saving} onClick={handleSave}>Create Shipment</Button>
           </div>
         </div>
       </div>
@@ -757,39 +778,65 @@ const NewShipment: React.FC = () => {
               <div className="font-medium text-[var(--color-text)]">{state.mode}</div>
 
               <div className="text-[var(--color-textMuted)]">Origin</div>
-              <div className="font-medium text-[var(--color-text)]">{state.originCountry} {state.originHub ? `• ${state.originHub}` : ""}</div>
+              <div className="font-medium text-[var(--color-text)]">
+                {hubs.find(h => h.id === state.originHubId)?.hub_name || '—'}
+              </div>
 
               <div className="text-[var(--color-textMuted)]">Destination</div>
-              <div className="font-medium text-[var(--color-text)]">{state.destCountry || "—"} {state.destHub ? `• ${state.destHub}` : ""}</div>
+              <div className="font-medium text-[var(--color-text)]">
+                {hubs.find(h => h.id === state.destHubId)?.hub_name || '—'}
+              </div>
 
               <div className="text-[var(--color-textMuted)]">Shipper</div>
               <div className="font-medium text-[var(--color-text)]">{state.shipper?.name ?? "—"}</div>
 
               <div className="text-[var(--color-textMuted)]">Consignee</div>
               <div className="font-medium text-[var(--color-text)]">{state.consignee?.name ?? "—"}</div>
-            </div>
-          </ComponentCard>
 
-          <ComponentCard title="User / Actions">
-            <div className="text-sm">
-              <div><span className="text-[var(--color-textMuted)]">Received by</span> <div className="font-medium">{state.receivedBy} • {state.receivedByUserId}</div></div>
-              <div className="mt-2 text-[var(--color-textMuted)] text-xs">After confirming & printing you will receive an Order ID and package QR codes for scanning and consolidation.</div>
+              <div className="text-[var(--color-textMuted)]">Total Packages</div>
+              <div className="font-medium text-[var(--color-text)]">{state.items.length}</div>
+
+              <div className="text-[var(--color-textMuted)]">Total Weight</div>
+              <div className="font-medium text-[var(--color-text)]">{totals.totalWeight.toFixed(2)} kg</div>
             </div>
           </ComponentCard>
         </div>
       </div>
 
-      {/* Confirm modal */}
-      <ConfirmReceiptModal isOpen={openConfirm} onClose={() => setOpenConfirm(false)} onConfirm={doConfirmAndPrint} formState={state} totals={totals} />
-
       {/* New Shipper modal */}
-      <Modal isOpen={openNewShipper} onClose={() => setOpenNewShipper(false)} title="New Shipper" size="lg" dismissible showCloseIcon footer={<ModalPartyFooter onCancel={() => setOpenNewShipper(false)} onSave={(p) => { setField("shipper", p); setOpenNewShipper(false); }} />}>
-        <CreatePartyBody key="shipper" />
+      <Modal 
+        isOpen={openNewShipper} 
+        onClose={() => setOpenNewShipper(false)} 
+        title="New Shipper" 
+        size="lg" 
+        dismissible 
+        showCloseIcon 
+        footer={
+          <CreatePartyFooter 
+            onCancel={() => setOpenNewShipper(false)} 
+            onSave={(data) => handleCreateParty(true, data)} 
+          />
+        }
+      >
+        <CreatePartyBody />
       </Modal>
 
       {/* New Consignee modal */}
-      <Modal isOpen={openNewConsignee} onClose={() => setOpenNewConsignee(false)} title="New Consignee" size="lg" dismissible showCloseIcon footer={<ModalPartyFooter onCancel={() => setOpenNewConsignee(false)} onSave={(p) => { setField("consignee", p); setOpenNewConsignee(false); }} />}>
-        <CreatePartyBody key="consignee" />
+      <Modal 
+        isOpen={openNewConsignee} 
+        onClose={() => setOpenNewConsignee(false)} 
+        title="New Consignee" 
+        size="lg" 
+        dismissible 
+        showCloseIcon 
+        footer={
+          <CreatePartyFooter 
+            onCancel={() => setOpenNewConsignee(false)} 
+            onSave={(data) => handleCreateParty(false, data)} 
+          />
+        }
+      >
+        <CreatePartyBody />
       </Modal>
     </div>
   );
@@ -801,39 +848,50 @@ export default NewShipment;
    Modal bodies & footers (shipper/consignee)
 ========================= */
 
-type PartyDraft = Party;
-const partyInitial = (): PartyDraft => ({ id: `NEW-${Date.now()}`, name: "", email: "", phone: "", address: "", country: "" });
+type PartyDraft = Partial<Party>;
 
 const CreatePartyBody: React.FC = () => {
-  const [form, setForm] = useState<PartyDraft>(partyInitial());
+  const [form, setForm] = useState<PartyDraft>({});
   (window as any).__partyDraft = form;
-  const set = <K extends keyof PartyDraft>(k: K, v: PartyDraft[K]) => setForm((f) => ({ ...f, [k]: v }));
+  const set = <K extends keyof PartyDraft>(k: K, v: PartyDraft[K]) => {
+    const newForm = { ...form, [k]: v };
+    setForm(newForm);
+    (window as any).__partyDraft = newForm;
+  };
 
   return (
     <div className="space-y-4 p-2">
       <Field label="Name" required>
-        <Input value={form.name} onValueChange={(v) => set("name", v)} placeholder="Full name / Company" />
+        <Input value={form.name || ''} onValueChange={(v) => set("name", v)} placeholder="Full name / Company" />
       </Field>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <Field label="Email"><Input value={form.email ?? ""} onValueChange={(v) => set("email", v)} placeholder="name@domain.com" /></Field>
-        <Field label="Phone"><Input value={form.phone ?? ""} onValueChange={(v) => set("phone", v)} placeholder="+91 90000 00000" /></Field>
+        <Field label="Email">
+          <Input value={form.email ?? ""} onValueChange={(v) => set("email", v)} placeholder="name@domain.com" />
+        </Field>
+        <Field label="Phone">
+          <Input value={form.phone ?? ""} onValueChange={(v) => set("phone", v)} placeholder="+91 90000 00000" />
+        </Field>
       </div>
 
       <Field label="Country">
-        <Input value={form.country ?? ""} onValueChange={(v) => set("country", v)} list="party-countries" placeholder="Country" />
-        <datalist id="party-countries">{COUNTRIES.map((c) => <option key={c} value={c} />)}</datalist>
+        <Input value={form.country ?? ""} onValueChange={(v) => set("country", v)} placeholder="Country" />
       </Field>
 
-      <Field label="Address"><Input value={form.address ?? ""} onValueChange={(v) => set("address", v)} placeholder="Address" /></Field>
+      <Field label="Address">
+        <Input value={form.address ?? ""} onValueChange={(v) => set("address", v)} placeholder="Address" />
+      </Field>
     </div>
   );
 };
 
-const ModalPartyFooter: React.FC<{ onCancel: () => void; onSave: (p: Party) => void }> = ({ onCancel, onSave }) => {
+const CreatePartyFooter: React.FC<{ onCancel: () => void; onSave: (p: PartyDraft) => void }> = ({ onCancel, onSave }) => {
   const handleSave = () => {
-    const draft: Party | undefined = (window as any).__partyDraft;
-    if (!draft?.name?.trim()) return;
+    const draft: PartyDraft | undefined = (window as any).__partyDraft;
+    if (!draft?.name?.trim()) {
+      alert('Party name is required');
+      return;
+    }
     onSave(draft);
     (window as any).__partyDraft = undefined;
   };
@@ -844,61 +902,3 @@ const ModalPartyFooter: React.FC<{ onCancel: () => void; onSave: (p: Party) => v
     </>
   );
 };
-
-/* =========================
-   Helper: generate printable HTML
-   (client-side fallback - replace with server print URL)
-========================= */
-function generateReceiptHtml(orderId: string, payload: any, packages: { packageId: string; qr: string }[], totals: any) {
-  const itemsHtml = payload.items.map((it: any, i: number) => `
-    <tr>
-      <td style="padding:6px;border:1px solid #ddd;">${i + 1}</td>
-      <td style="padding:6px;border:1px solid #ddd;">${it.length || '-'} x ${it.width || '-'} x ${it.height || '-'} ${it.dimUnit}</td>
-      <td style="padding:6px;border:1px solid #ddd;">${it.unit} / ${it.pkg || 0}</td>
-      <td style="padding:6px;border:1px solid #ddd;">${it.actWeightKg || 0}</td>
-      <td style="padding:6px;border:1px solid #ddd;">${it.description || '-'}</td>
-    </tr>
-  `).join("");
-
-  const pkgQrHtml = packages.map(p => `<div style="display:inline-block;margin:6px;padding:8px;border:1px solid #ccc;"><div style="font-size:12px;">${p.packageId}</div><div style="font-size:10px;color:#666;">QR:${p.qr}</div></div>`).join("");
-
-  return `
-  <html>
-    <head><title>Receipt ${orderId}</title></head>
-    <body style="font-family:Arial,Helvetica,sans-serif;padding:20px;">
-      <h2>Warehouse Receipt: ${orderId}</h2>
-      <div><strong>WR No:</strong> ${payload.wrNo} • <strong>Received:</strong> ${new Date(payload.receivedAt).toLocaleString()}</div>
-      <div><strong>Location:</strong> ${payload.location}</div>
-      <hr />
-      <h4>Shipper</h4>
-      <div>${payload.shipper?.name ?? '-'}</div>
-      <h4>Consignee</h4>
-      <div>${payload.consignee?.name ?? '-'}</div>
-      <hr />
-      <table style="width:100%;border-collapse:collapse;margin-top:12px;">
-        <thead>
-          <tr>
-            <th style="padding:6px;border:1px solid #ddd;text-align:left">#</th>
-            <th style="padding:6px;border:1px solid #ddd;text-align:left">Dimensions</th>
-            <th style="padding:6px;border:1px solid #ddd;text-align:left">Unit</th>
-            <th style="padding:6px;border:1px solid #ddd;text-align:left">Weight (kg)</th>
-            <th style="padding:6px;border:1px solid #ddd;text-align:left">Description</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${itemsHtml}
-        </tbody>
-      </table>
-
-      <div style="margin-top:12px;"><strong>Totals:</strong> Packages ${totals.totalPkg} • Pieces ${totals.totalPcs} • CBM ${totals.cbm.toFixed(3)} • Weight ${totals.actKg} kg</div>
-
-      <div style="margin-top:12px;">
-        <h4>Package QRs</h4>
-        ${pkgQrHtml}
-      </div>
-
-      <div style="margin-top:20px;"><em>Generated by MPJ Logistics</em></div>
-    </body>
-  </html>
-  `;
-}

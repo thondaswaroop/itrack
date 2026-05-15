@@ -5,11 +5,13 @@ export const commonconstants = {
     MAX_FILE_SIZE_MB: 5,
     SUPPORTED_IMAGE_FORMATS: ["image/jpeg", "image/png", "image/gif"],
 };
-export enum Role {
-    ADMIN = 1,
-    VENDOR = 2,
-    ASSOCIATE = 3,
-}
+export const Role = {
+    ADMIN: 1,
+    VENDOR: 2,
+    ASSOCIATE: 3,
+} as const;
+
+export type Role = typeof Role[keyof typeof Role];
 
 
 
@@ -17,5 +19,6 @@ export enum Role {
 export type UserDetails = {
     userId: number | string
     roleId: Role | `${Role}`          // allow "1" or 1
+    hubId?: number | null             // Hub assignment for associates/vendors
     // or for multi-role in future: roles?: Role[]
 }

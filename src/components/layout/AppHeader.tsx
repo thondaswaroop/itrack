@@ -24,7 +24,7 @@ const AppHeader: React.FC = () => {
   }, []);
 
   return (
-    <header className="z-99999 sticky top-0 w-full bg-[var(--color-surface)] lg:border-b border-[var(--color-border)]">
+    <header className="z-99999 sticky top-0 w-full bg-[var(--color-surface)] lg:border-b border-[var(--color-border)] print:hidden">
       <div className="flex grow flex-col items-center justify-between lg:flex-row lg:px-6">
         <div className="flex w-full items-center justify-between gap-2 border-b px-3 py-3 lg:justify-normal lg:border-b-0 lg:px-0 lg:py-4 border-[var(--color-border)]">
           <button

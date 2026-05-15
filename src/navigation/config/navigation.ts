@@ -34,40 +34,42 @@ const isVisibleForRole = (v: Visibility | undefined, role: RoleId | null): boole
 
 export const NAV_ITEMS: NavItem[] = [
   { icon: "dashboard", name: "Dashboard", path: "/home" },
+  
   {
-    icon: "customers",
-    name: "Super Admin",
+    icon: "shipment",
+    name: "Shipments",
     subItems: [
-      { name: "Countries",  path: "/countries",  icon: "routes",   hiddenFor: [2,3] },
-      { name: "Locations",  path: "/locations",  icon: "routes",   hiddenFor: [2,3] },
-      { name: "Hubs",       path: "/hubs",       icon: "routes",   hiddenFor: [2,3] },
-      { name: "Vendors",    path: "/Vendors",    icon: "customers", visibleFor: [1] },
+      { name: "New Receipt", path: "/newshipment", icon: "receipt" },
+      { name: "Arrival", path: "/arrival", icon: "truck" },
+      { name: "Scan Package", path: "/scan", icon: "scan" },
     ],
+  },
+
+  {
+    icon: "warehouse",
+    name: "Load",
+    path: "/load",
   },
 
   {
     icon: "master",
-    name: "Master",
+    name: "Masters",
     subItems: [
-      { name: "Associates", path: "/associates", icon: "drivers",   hiddenFor: [3] },
-      { name: "Containers", path: "/containers", icon: "vehicle", hiddenFor: [3] },
-      { name: "Shelfs",     path: "/shelfs",     icon: "master", hiddenFor: [3] },
+      { name: "Countries", path: "/countries", icon: "country", hiddenFor: [2, 3] },
+      { name: "Locations", path: "/locations", icon: "location", hiddenFor: [2, 3] },
+      { name: "Hubs", path: "/hubs", icon: "hub", hiddenFor: [2, 3] },
+      { name: "Vendors", path: "/vendors", icon: "customers", visibleFor: [1] },
+      { name: "Associates", path: "/associates", icon: "drivers", hiddenFor: [3] },
+      { name: "Containers", path: "/containers", icon: "container", hiddenFor: [3] },
+      { name: "Shelves", path: "/shelves", icon: "shelf", hiddenFor: [3] },
     ],
   },
 
-  {
-    icon: "bookings",
-    name: "Shipment",
-    subItems: [
-      { name: "New Shipment",   path: "/newshipment",   icon: "plus" },
-      { name: "Scan Package", path: "/scan", icon: "bookings" },
-      
-    ],
-  },
-  { icon: "customers", name: "Customers",  path: "/customers" },
-  { icon: "reports",   name: "Reports",    path: "/reports" },
-  { icon: "settings",  name: "Settings",   path: "/settings" },
-  { icon: "logout",    name: "Logout",     path: "/logout" },
+  { icon: "customers", name: "Customers", path: "/customers" },
+  { icon: "reports", name: "Reports", path: "/reports" },
+  { icon: "settings", name: "Settings", path: "/settings" },
+  { icon: "profile", name: "Account Info", path: "/account-diagnostics" },
+  { icon: "logout", name: "Logout", path: "/logout" },
 ];
 
 /** Recursively filter nav by role. */

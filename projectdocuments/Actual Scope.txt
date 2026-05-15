@@ -1,0 +1,230 @@
+🧭 iTrack – Logistics Management System (Your Actual Scope)
+🌍 Business Context
+
+A global logistics platform similar to FedEx / BlueDart
+
+Handles AIR, OCEAN, and GROUND (road/truck) shipments
+
+Operates across multiple countries
+
+Each country has multiple hubs
+
+Each hub can later be managed by the same vendor (multi-hub vendor support)
+
+👥 User Roles
+
+Super Admin
+
+Manages entire system globally
+
+Countries, hubs, vendors, configs, reports
+
+Vendor (Hub Owner)
+
+Manages one or more hubs
+
+Views historical data even after switching hubs
+
+Manages associates, warehouse, shipments
+
+Associate (Staff)
+
+Day-to-day operations
+
+Receiving, consolidation, scanning, updates
+
+Customer
+
+Uses mobile app
+
+Creates shipment requests
+
+Tracks package status
+
+📦 Core Shipment Lifecycle (Very Important)
+
+You explicitly designed the flow as step-based, not random updates.
+
+STEP 1 — RECEIVING
+
+Customer comes to Hub A
+
+Associate:
+
+Collects shipper & consignee details
+
+Captures package dimensions, weight, items
+
+System:
+
+Generates WR / Receipt Number (temporary, pre-shipment ID)
+
+Prints receipt for customer
+
+Status = RECEIVED
+
+📌 No warehouse/container assignment here.
+
+STEP 2 — CONSOLIDATION
+
+Happens after receiving
+
+Performed by associate/vendor
+
+Package is:
+
+Assigned to container
+
+Assigned to shelf / aisle
+
+Can consolidate:
+
+Multiple packages together
+
+Or dedicate container for a single customer
+
+Status = CONSOLIDATED
+
+📌 Warehouse assignment lives here (not in receiving)
+
+STEP 3 — SHIPMENT / MOVEMENT
+
+Container dispatched via:
+
+AIR / OCEAN / GROUND
+
+Package moves through:
+
+DISPATCHED
+
+IN_TRANSIT
+
+ARRIVED (destination hub)
+
+READY_FOR_PICKUP
+
+COLLECTED
+
+📌 Each movement updates location + timestamp
+
+🏗 Warehouse Model
+
+Each hub has:
+
+Shelves
+
+Containers
+
+Containers:
+
+Can be reused after empty
+
+May hold multiple packages (same destination)
+
+Every scan creates audit trail
+
+🖥 Web Application Structure (Your Design Philosophy)
+Key Screens You Want
+1️⃣ Dashboard (Home)
+
+KPI cards
+
+Quick actions
+
+Check Package modal
+
+Full status timeline
+
+Clean spacing & strong visual hierarchy
+
+Uses your primary color system
+
+2️⃣ NewShipment (newshipment.tsx)
+
+Handles ONLY STEP 1
+
+Receiving form
+
+Receipt preview & print
+
+No warehouse logic here
+
+3️⃣ UpdateShipment (updateshipment.tsx)
+
+Handles STEP 2 — Consolidation
+
+Search by WR / Tracking ID
+
+Shows:
+
+Package details
+
+Items
+
+History
+
+Assign:
+
+Container
+
+Shelf
+
+Move to CONSOLIDATED
+
+Timeline displayed on right side
+
+4️⃣ ScanPackage (scanpackage.tsx)
+
+This is your most powerful operations screen
+
+Single page, dynamic
+
+Scan / type package number
+
+UI changes based on current status
+
+Same page handles:
+
+Consolidation
+
+Dispatch
+
+In-transit updates
+
+Arrival
+
+Pickup
+
+Timeline always visible
+
+Real logistics-style workflow
+
+📌 You explicitly said:
+
+“I hate separate advance shipment pages — I want ONE container-driven flow”
+
+🎨 Design Principles You Enforced
+
+Clean, enterprise-grade UI
+
+Proper spacing & alignment
+
+Timeline must:
+
+Be vertical
+
+Clearly show past / current / future
+
+Highlight active step
+
+Show timestamps & hubs
+
+Uses your theme palette:
+
+--color-primary (#ef8421)
+
+No random Tailwind colors
+
+No clutter
+
+No broken stepper alignment
